@@ -1,4 +1,8 @@
-import { Routes, Route } from "react-router-dom";
+import { Routes, Route, Navigate } from "react-router-dom";
+import { useContext, type ReactElement } from "react";
+import { AuthContext } from "./context/AuthContext";
+
+// PAGES (we're about to create these)
 import { LandingPage } from "./pages/LandingPage";
 import { LoginPage } from "./pages/LoginPage";
 import { SignupPage } from "./pages/SignupPage";
@@ -10,19 +14,79 @@ import { NearbyPage } from "./pages/NearbyPage";
 import { EventsPage } from "./pages/EventsPage";
 import { EventContactsPage } from "./pages/EventContactsPage";
 
+function RequireAuth({ children }: { children: ReactElement }) {
+  const { user } = useContext(AuthContext);
+  if (!user) {
+    return <Navigate to="/login" replace />;
+  }
+  return children;
+}
+
 export default function App() {
   return (
     <Routes>
       <Route path="/" element={<LandingPage />} />
       <Route path="/login" element={<LoginPage />} />
       <Route path="/signup" element={<SignupPage />} />
-      <Route path="/dashboard" element={<DashboardPage />} />
-      <Route path="/profile/edit" element={<ProfileEditPage />} />
-      <Route path="/profile/me" element={<ProfileMePage />} />
+
+      <Route
+        path="/dashboard"
+        element={
+          <RequireAuth>
+            <DashboardPage />
+          </RequireAuth>
+        }
+      />
+
+      <Route
+        path="/profile/edit"
+        element={
+          <RequireAuth>
+            <ProfileEditPage />
+          </RequireAuth>
+        }
+      />
+
+      <Route
+        path="/profile/me"
+        element={
+          <RequireAuth>
+            <ProfileMePage />
+          </RequireAuth>
+        }
+      />
+
+      {/* public profile by slug – for sharing */}
       <Route path="/p/:slug" element={<PublicProfilePage />} />
-      <Route path="/nearby/:eventCode" element={<NearbyPage />} />
-      <Route path="/events" element={<EventsPage />} />
-      <Route path="/events/:eventCode" element={<EventContactsPage />} />
+
+      {/* proximity & events also require login */}
+      <Route
+        path="/nearby/:eventCode"
+        element={
+          <RequireAuth>
+            <NearbyPage />
+          </RequireAuth>
+        }
+      />
+      <Route
+        path="/events"
+        element={
+          <RequireAuth>
+            <EventsPage />
+          </RequireAuth>
+        }
+      />
+      <Route
+        path="/events/:eventCode"
+        element={
+          <RequireAuth>
+            <EventContactsPage />
+          </RequireAuth>
+        }
+      />
+
+      {/* fallback */}
+      <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   );
 }
