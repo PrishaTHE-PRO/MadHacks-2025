@@ -26,9 +26,7 @@ import { useContext, useState, useEffect } from "react";
 import { AuthContext } from "../context/AuthContext";
 import graingerHallImg from "../assets/graingerhall.jpeg";
 import unionSouthImg from "../assets/unionsouth.jpeg";
-import { storage, db } from "../firebase";
-import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
-import { doc as firestoreDoc, getDoc as getFirestoreDoc } from "firebase/firestore";
+import uploadImage from "../services/imageUploadService";
 import { useTheme } from "@mui/material/styles";
 import AddIcon from "@mui/icons-material/Add";
 import CalendarMonthIcon from "@mui/icons-material/CalendarMonth";
@@ -46,7 +44,6 @@ import {
 import { motion } from "framer-motion";
 import LogoutIcon from '@mui/icons-material/Logout';
 import { logout } from "../services/authService";
-import { BackButton } from "../components/BackButton";
 import { ThemeSwitch } from "../components/ThemeSwitch";
 
 const MotionIconButton = motion(IconButton);
@@ -99,6 +96,7 @@ export function DashboardPage() {
   const [createRole, setCreateRole] = useState<Role>("attendee");
   const [generatedCode, setGeneratedCode] = useState<string | null>(null);
   const [newEventImageFile, setNewEventImageFile] = useState<File | null>(null);
+  const [newEventImageUrl, setNewEventImageUrl] = useState<string>("");
   const [createError, setCreateError] = useState(""); // if you haven't already
 
   // Load events from Firestore for this user
@@ -228,13 +226,14 @@ export function DashboardPage() {
       let lng: number | undefined;
       let startTimestamp: number | undefined;
 
-      if (newEventImageFile) {
-        const storageRef = ref(
-          storage,
-          `event_images/${user.uid}/${code}_${newEventImageFile.name}`
-        );
-        await uploadBytes(storageRef, newEventImageFile);
-        imageUrl = await getDownloadURL(storageRef);
+      if (newEventImageUrl && newEventImageUrl.trim()) {
+        imageUrl = newEventImageUrl.trim();
+      } else if (newEventImageFile) {
+        try {
+          imageUrl = await uploadImage(newEventImageFile, user.uid, code);
+        } catch (err) {
+          console.warn("Image upload failed, continuing without image:", err);
+        }
       }
 
       // If we have a date (computedDate may have been set to today) and a time, compute a timestamp
@@ -279,27 +278,29 @@ export function DashboardPage() {
         lng: lng ?? null,
         startTimestamp: startTimestamp ?? null,
       });
-      // Read back the saved event from Firestore to ensure displayed values
+      // Read back the saved event from Firestore to ensure displayed values.
+      // Then refresh the user's event list so the UI reflects the stored imageUrl.
       try {
-        const eventRef = firestoreDoc(db, "events", code);
-        const snap = await getFirestoreDoc(eventRef);
-        const saved = snap.exists() ? (snap.data() as FirestoreEvent) : null;
+        // debug logging
+        // eslint-disable-next-line no-console
+        console.debug("created event imageUrl:", imageUrl);
 
-        const newEvent: EventItem = {
-          code,
-          name: saved?.name || newEventName.trim(),
-          date: saved?.date || date,
-          time: saved?.time || timeToSave,
-          location: saved?.location || location,
+        await new Promise((r) => setTimeout(r, 300)); // small delay to allow propagation
+        const refreshed = await getEventsForUser(user.uid);
+        const mapped: EventItem[] = refreshed.map(({ event, role }) => ({
+          code: event.code,
+          name: event.name,
+          date: event.date,
+          time: event.time,
+          location: event.location,
           joined: true,
-          image: saved?.imageUrl || imageUrl || pickImageForLocation(location),
-          createdByUid: saved?.createdByUid || user.uid,
-          role: createRole,
-        };
-
-        setEvents((prev) => [...prev, newEvent]);
+          image: event.imageUrl || pickImageForLocation(event.location),
+          createdByUid: event.createdByUid,
+          role,
+        }));
+        setEvents(mapped);
       } catch (err) {
-        // fallback to local object if readback fails
+        // fallback: append optimistic event with the uploaded image (if any)
         const newEvent: EventItem = {
           code,
           name: newEventName.trim(),
@@ -316,6 +317,7 @@ export function DashboardPage() {
       setGeneratedCode(code);
       setCreateError("");
       setNewEventImageFile(null);
+      setNewEventImageUrl("");
     } catch (err: any) {
       console.error(err);
       setCreateError(err.message || "Failed to create event.");
@@ -349,6 +351,7 @@ export function DashboardPage() {
     setNewEventLocation("");
     setCreateRole("attendee");
     setNewEventImageFile(null);
+    setNewEventImageUrl("");
     setCreateError("");
   };
 
@@ -776,11 +779,24 @@ export function DashboardPage() {
                 }}
               />
             </Button>
-            {newEventImageFile && (
+            <TextField
+              label="Event image URL (optional)"
+              fullWidth
+              variant="outlined"
+              value={newEventImageUrl}
+              onChange={(e) => setNewEventImageUrl(e.target.value)}
+              sx={{ mt: 1 }}
+            />
+
+            {newEventImageFile ? (
               <Typography variant="caption" sx={{ mt: 0.5 }}>
-                Selected: {newEventImageFile.name}
+                Selected file: {newEventImageFile.name}
               </Typography>
-            )}
+            ) : newEventImageUrl ? (
+              <Typography variant="caption" sx={{ mt: 0.5 }}>
+                Using URL: {newEventImageUrl}
+              </Typography>
+            ) : null}
 
             <FormControl component="fieldset">
               <FormLabel component="legend">I am attending as</FormLabel>

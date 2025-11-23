@@ -1,4 +1,4 @@
-import { useState, useEffect, useContext, useRef } from "react";
+import { useState, useEffect, useContext } from "react";
 import {
   Box,
   Container,
@@ -15,10 +15,6 @@ import { keyframes } from "@mui/system";
 import { useNavigate } from "react-router-dom";
 import { AuthContext } from "../context/AuthContext";
 import { saveProfile, getProfileByUid } from "../services/profileService";
-import PhotoCameraIcon from "@mui/icons-material/PhotoCamera";
-import UploadFileIcon from "@mui/icons-material/UploadFile";
-import MovieIcon from "@mui/icons-material/Movie";
-import ImageIcon from "@mui/icons-material/Image";
 import DeleteIcon from "@mui/icons-material/Delete";
 
 // simple animation helpers
@@ -55,9 +51,6 @@ export function ProfileEditPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
-  // keep track of object URLs to clean up
-  const objectUrlsRef = useRef<string[]>([]);
-
   useEffect(() => {
     if (!user) return;
 
@@ -93,47 +86,8 @@ export function ProfileEditPage() {
 
     return () => {
       mounted = false;
-      // clean up object URLs
-      objectUrlsRef.current.forEach((url) => URL.revokeObjectURL(url));
     };
   }, [user]);
-
-  const pushObjectUrl = (url: string) => {
-    objectUrlsRef.current.push(url);
-  };
-
-  const handlePhotoFile = (file: File | null) => {
-    if (!file) return;
-    const url = URL.createObjectURL(file);
-    pushObjectUrl(url);
-    setPhotoURL(url); // in a real app you'd upload to storage & store that URL
-  };
-
-  const handleResumeFile = (file: File | null) => {
-    if (!file) return;
-    if (file.type !== "application/pdf") {
-      setError("Resume must be a PDF file.");
-      return;
-    }
-    setError("");
-    const url = URL.createObjectURL(file);
-    pushObjectUrl(url);
-    setResumeUrl(url);
-  };
-
-  const handleGalleryFileAtIndex = (index: number, file: File | null) => {
-    if (!file) return;
-    if (!file.type.startsWith("image/")) {
-      setError("Gallery items must be image files.");
-      return;
-    }
-    setError("");
-    const url = URL.createObjectURL(file);
-    pushObjectUrl(url);
-    const next = [...galleryUrls];
-    next[index] = url;
-    setGalleryUrls(normalizeGallery(next));
-  };
 
   const handleGalleryUrlAtIndex = (index: number, value: string) => {
     const next = [...galleryUrls];
@@ -146,33 +100,7 @@ export function ProfileEditPage() {
     next[index] = "";
     setGalleryUrls(normalizeGallery(next));
   };
-
-  const handleVideoFile = (file: File | null) => {
-    if (!file) return;
-    if (!file.type.startsWith("video/")) {
-      setError("Video must be a video file (mp4, webm, etc).");
-      return;
-    }
-
-    setError("");
-    const tempUrl = URL.createObjectURL(file);
-    const video = document.createElement("video");
-    video.preload = "metadata";
-    video.src = tempUrl;
-
-    video.onloadedmetadata = () => {
-      window.URL.revokeObjectURL(video.src);
-      const duration = video.duration;
-      if (duration > 60) {
-        setError("Video must be at most 60 seconds long.");
-        URL.revokeObjectURL(tempUrl);
-        return;
-      }
-      pushObjectUrl(tempUrl);
-      setVideoUrl(tempUrl);
-    };
-  };
-
+  
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
@@ -263,21 +191,6 @@ export function ProfileEditPage() {
             </Avatar>
 
             <Stack direction="row" spacing={1} alignItems="center">
-              <Button
-                variant="outlined"
-                component="label"
-                startIcon={<PhotoCameraIcon />}
-              >
-                Upload Photo
-                <input
-                  type="file"
-                  accept="image/*"
-                  hidden
-                  onChange={(e) =>
-                    handlePhotoFile(e.target.files?.[0] || null)
-                  }
-                />
-              </Button>
               <IconButton
                 aria-label="remove photo"
                 onClick={() => setPhotoURL("")}
@@ -355,21 +268,6 @@ export function ProfileEditPage() {
               {/* Resume */}
               <Typography variant="subtitle1">Resume (PDF)</Typography>
               <Stack direction={{ xs: "column", sm: "row" }} spacing={2}>
-                <Button
-                  variant="outlined"
-                  component="label"
-                  startIcon={<UploadFileIcon />}
-                >
-                  Upload PDF
-                  <input
-                    type="file"
-                    accept="application/pdf"
-                    hidden
-                    onChange={(e) =>
-                      handleResumeFile(e.target.files?.[0] || null)
-                    }
-                  />
-                </Button>
                 <TextField
                   label="Resume URL (optional)"
                   fullWidth
@@ -405,25 +303,6 @@ export function ProfileEditPage() {
                     >
                       Image {index + 1}
                     </Typography>
-                    <Button
-                      variant="outlined"
-                      component="label"
-                      size="small"
-                      startIcon={<ImageIcon />}
-                    >
-                      Upload
-                      <input
-                        type="file"
-                        accept="image/*"
-                        hidden
-                        onChange={(e) =>
-                          handleGalleryFileAtIndex(
-                            index,
-                            e.target.files?.[0] || null
-                          )
-                        }
-                      />
-                    </Button>
                     <TextField
                       size="small"
                       label="Image URL (optional)"
@@ -450,21 +329,6 @@ export function ProfileEditPage() {
                 Video Portfolio (max 60 seconds)
               </Typography>
               <Stack direction={{ xs: "column", sm: "row" }} spacing={2}>
-                <Button
-                  variant="outlined"
-                  component="label"
-                  startIcon={<MovieIcon />}
-                >
-                  Upload Video
-                  <input
-                    type="file"
-                    accept="video/*"
-                    hidden
-                    onChange={(e) =>
-                      handleVideoFile(e.target.files?.[0] || null)
-                    }
-                  />
-                </Button>
                 <TextField
                   label="Video URL (optional)"
                   fullWidth
