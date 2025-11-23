@@ -45,6 +45,7 @@ import {
   type FirestoreEvent,
   type Role,
 } from "../services/eventService";
+import { BackButton } from "../components/BackButton";
 
 type EventItem = {
   code: string;
@@ -375,6 +376,7 @@ export function DashboardPage() {
             : "#f5f5f7",
       }}
     >
+      <BackButton />
       <Container maxWidth="lg" sx={{ pt: 10, pb: 6 }}>
         <Stack spacing={4}>
           {/* Header */}

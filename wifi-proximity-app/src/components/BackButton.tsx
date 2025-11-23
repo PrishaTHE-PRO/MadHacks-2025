@@ -28,7 +28,7 @@ export const BackButton: FC<BackButtonProps> = ({ onClick }) => {
       sx={{
         position: "fixed",
         top: 70,
-        left: 16,
+        left: 45,
         zIndex: 2000,
       }}
     >
