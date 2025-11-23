@@ -277,6 +277,59 @@ export function PublicProfilePage() {
             </>
           )}
 
+          {/* Photo Gallery */}
+          {gallery.length > 0 && (
+            <>
+              <Divider sx={{ my: 3 }} />
+              <Stack
+                direction="row"
+                spacing={1}
+                alignItems="center"
+                mb={1}
+              >
+                <PhotoLibraryIcon fontSize="small" />
+                <Typography variant="h6">Photos</Typography>
+              </Stack>
+              <Box
+                sx={{
+                  display: "flex",
+                  flexDirection: "row",
+                  gap: 1.5,
+                  overflowX: "auto",
+                  py: 1,
+                  px: 0.5,
+                }}
+              >
+                {gallery.map((url, idx) => (
+                  <Box
+                    key={idx}
+                    sx={{
+                      flex: "0 0 70%",
+                      maxWidth: 280,
+                      borderRadius: 2,
+                      overflow: "hidden",
+                      boxShadow: 3,
+                      ...cardHover,
+                    }}
+                  >
+                    <Box
+                      component="img"
+                      src={url}
+                      alt={`Gallery ${idx + 1}`}
+                      sx={{
+                        display: "block",
+                        width: "100%",
+                        height: "100%",
+                        objectFit: "cover",
+                        aspectRatio: "4 / 3",
+                      }}
+                    />
+                  </Box>
+                ))}
+              </Box>
+            </>
+          )}
+
           {/* Gallery */}
           {profile.galleryUrls && profile.galleryUrls.length > 0 && (
             <>
