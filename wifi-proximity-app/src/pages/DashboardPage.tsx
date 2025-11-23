@@ -268,7 +268,7 @@ export function DashboardPage() {
     : events;
 
   const renderEventCard = (event: EventItem, index: number) => (
-    <Box key={event.code} sx={{ flex: "1 1 300px", maxWidth: 400 }}>
+    <Box key={event.code} sx={{ flex: "1 1 360px", maxWidth: 480 }}>
       <Card
         elevation={3}
         sx={{
@@ -293,7 +293,7 @@ export function DashboardPage() {
           }}
         />
 
-        <CardContent sx={{ position: "relative" }}>
+        <CardContent sx={{ position: "relative", px: 3, py: 2.5 }}>
           <Typography variant="h6" gutterBottom>
             <b>{event.name}</b>
           </Typography>
@@ -330,7 +330,7 @@ export function DashboardPage() {
           </Stack>
         </CardContent>
 
-        <CardActions sx={{ position: "relative" }}>
+        <CardActions sx={{ position: "relative", px: 3, pb: 2 }}>
           <Button
             size="small"
             component={Link}
