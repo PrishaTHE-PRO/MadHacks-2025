@@ -44,7 +44,12 @@ export function Navbar() {
             edge="start"
             onClick={() => {
               const path = location.pathname;
-              // If we're on a profile-related page, go to dashboard instead of history.back
+              // If we're on the edit profile page, go to the My Profile page
+              if (path === "/profile/edit") {
+                navigate("/profile/me");
+                return;
+              }
+              // If we're on other profile-related pages, go to dashboard instead of history.back
               if (path.startsWith("/profile") || path.startsWith("/events") || path.startsWith("/nearby")) {
                 navigate("/dashboard");
                 return;
