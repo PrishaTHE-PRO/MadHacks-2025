@@ -20,8 +20,20 @@ export function Navbar() {
       sx={{ bgcolor: "background.paper", color: "text.primary" }}
     >
       <Toolbar>
-        {/* Back arrow */}
-        <IconButton edge="start" onClick={() => navigate(-1)}>
+        {/* Back arrow: prefer an explicit target for list-like pages so back doesn't return
+            to an edit form. Fall back to history.back when no explicit target exists. */}
+        <IconButton
+          edge="start"
+          onClick={() => {
+            const path = location.pathname;
+            // If we're on a profile-related page, go to dashboard instead of history.back
+            if (path.startsWith("/profile") || path.startsWith("/events") || path.startsWith("/nearby")) {
+              navigate("/dashboard");
+              return;
+            }
+            navigate(-1);
+          }}
+        >
           <ArrowBackIcon />
         </IconButton>
 
