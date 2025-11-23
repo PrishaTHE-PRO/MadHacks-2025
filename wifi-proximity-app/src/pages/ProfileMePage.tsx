@@ -11,7 +11,7 @@ import {
   Button,
 } from "@mui/material";
 import { keyframes } from "@mui/system";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { AuthContext } from "../context/AuthContext";
 import { getProfileByUid } from "../services/profileService";
 import EmailIcon from "@mui/icons-material/Email";
@@ -53,6 +53,7 @@ const cardHover = {
 
 export function ProfileMePage() {
   const { user } = useContext(AuthContext);
+  const navigate = useNavigate();
   const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(false);
 
@@ -121,7 +122,7 @@ export function ProfileMePage() {
           "radial-gradient(circle at top, rgba(25,118,210,0.13), transparent 60%)",
       }}
     >
-      <BackButton />
+      <BackButton onClick={() => navigate("/dashboard")} />
       <Container maxWidth="sm">
         <Paper
           sx={{
