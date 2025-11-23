@@ -1,8 +1,4 @@
 import { useEffect, useState, useContext } from "react";
-import { useParams, useNavigate, useSearchParams } from "react-router-dom";
-import { getProfileBySlug } from "../services/profileService";
-import { saveInteraction } from "../services/eventService";
-import { AuthContext } from "../context/AuthContext";
 import {
   Box,
   Container,
@@ -14,22 +10,36 @@ import {
   Chip,
   Divider,
   Button,
+  Card,
+  CardMedia,
+  Collapse,
 } from "@mui/material";
+import { useParams, useNavigate, useSearchParams } from "react-router-dom";
+import { getProfileBySlug } from "../services/profileService";
+import { saveInteraction } from "../services/eventService";
+import { AuthContext } from "../context/AuthContext";
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 import EmailIcon from "@mui/icons-material/Email";
 import PhoneIcon from "@mui/icons-material/Phone";
 import LinkedInIcon from "@mui/icons-material/LinkedIn";
+import LanguageIcon from "@mui/icons-material/Language";
+import InsertDriveFileIcon from "@mui/icons-material/InsertDriveFile";
 
 interface Profile {
   slug: string;
-  name: string;
+  userId: string;
+  firstName?: string;
+  lastName?: string;
   email?: string;
   phone?: string;
   bio?: string;
   interests?: string[];
   linkedin?: string;
+  website?: string;
   photoURL?: string;
-  userId: string;
+  resumeURL?: string;
+  images?: string[];
+  videoURL?: string;
 }
 
 export function ProfileViewPage() {
@@ -39,17 +49,17 @@ export function ProfileViewPage() {
   const backTo = searchParams.get("back") || "events";
   const navigate = useNavigate();
   const { user } = useContext(AuthContext);
+
   const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
   const [saved, setSaved] = useState(false);
+  const [showResume, setShowResume] = useState(false);
 
   useEffect(() => {
     if (slug) {
       getProfileBySlug(slug)
         .then((data) => {
-          if (data) {
-            setProfile(data as Profile);
-          }
+          if (data) setProfile(data as Profile);
         })
         .finally(() => setLoading(false));
     }
@@ -93,6 +103,10 @@ export function ProfileViewPage() {
     );
   }
 
+  const fullName =
+    (profile.firstName || "") + " " + (profile.lastName || "");
+  const images = Array.isArray(profile.images) ? profile.images : [];
+
   return (
     <Box sx={{ minHeight: "100vh", bgcolor: "#f5f5f5", pt: 8 }}>
       {/* Back Button */}
@@ -113,14 +127,20 @@ export function ProfileViewPage() {
         <Paper elevation={3} sx={{ p: 4, borderRadius: 3 }}>
           {/* Profile Header */}
           <Stack direction="column" alignItems="center" spacing={2}>
-            <Avatar
-              src={profile.photoURL}
-              sx={{ width: 120, height: 120, bgcolor: "primary.main" }}
-            >
-              {profile.name?.charAt(0).toUpperCase()}
-            </Avatar>
+            {profile.photoURL && (
+              <Avatar
+                src={profile.photoURL}
+                sx={{ width: 120, height: 120, bgcolor: "primary.main" }}
+              >
+                {!profile.photoURL &&
+                  fullName
+                    .trim()
+                    .charAt(0)
+                    .toUpperCase()}
+              </Avatar>
+            )}
             <Typography variant="h4" align="center">
-              {profile.name}
+              {fullName.trim() || "(Name not set)"}
             </Typography>
             {profile.bio && (
               <Typography
@@ -135,7 +155,7 @@ export function ProfileViewPage() {
 
           <Divider sx={{ my: 3 }} />
 
-          {/* Contact Information */}
+          {/* Contact Information + Links */}
           <Stack spacing={2}>
             {profile.email && (
               <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
@@ -158,13 +178,60 @@ export function ProfileViewPage() {
                   component="a"
                   href={profile.linkedin}
                   target="_blank"
-                  sx={{ textDecoration: "none", color: "primary.main" }}
+                  sx={{
+                    textDecoration: "none",
+                    color: "primary.main",
+                  }}
                 >
                   LinkedIn Profile
                 </Typography>
               </Box>
             )}
+
+            {profile.website && (
+              <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                <LanguageIcon color="action" />
+                <Typography
+                  component="a"
+                  href={profile.website}
+                  target="_blank"
+                  sx={{
+                    textDecoration: "none",
+                    color: "primary.main",
+                  }}
+                >
+                  Website
+                </Typography>
+              </Box>
+            )}
           </Stack>
+
+          {/* Resume */}
+          {profile.resumeURL && (
+            <>
+              <Divider sx={{ my: 3 }} />
+              <Button
+                fullWidth
+                variant="outlined"
+                startIcon={<InsertDriveFileIcon />}
+                onClick={() => setShowResume((s) => !s)}
+                sx={{ mb: 1 }}
+              >
+                {showResume ? "Hide Resume" : "View Resume"}
+              </Button>
+              <Collapse in={showResume}>
+                <iframe
+                  src={profile.resumeURL}
+                  style={{
+                    width: "100%",
+                    height: 400,
+                    borderRadius: 8,
+                    border: "none",
+                  }}
+                />
+              </Collapse>
+            </>
+          )}
 
           {/* Interests */}
           {profile.interests && profile.interests.length > 0 && (
@@ -175,9 +242,57 @@ export function ProfileViewPage() {
               </Typography>
               <Box sx={{ display: "flex", flexWrap: "wrap", gap: 1 }}>
                 {profile.interests.map((interest, index) => (
-                  <Chip key={index} label={interest} color="primary" variant="outlined" />
+                  <Chip
+                    key={index}
+                    label={interest}
+                    color="primary"
+                    variant="outlined"
+                  />
                 ))}
               </Box>
+            </>
+          )}
+
+          {/* Gallery */}
+          {images.length > 0 && (
+            <>
+              <Divider sx={{ my: 3 }} />
+              <Typography variant="h6" gutterBottom>
+                Gallery
+              </Typography>
+              <Box
+                sx={{
+                  display: "flex",
+                  overflowX: "auto",
+                  gap: 2,
+                  py: 1,
+                }}
+              >
+                {images.map((url, i) => (
+                  <Card key={i} sx={{ minWidth: 200 }}>
+                    <CardMedia component="img" image={url} height="140" />
+                  </Card>
+                ))}
+              </Box>
+            </>
+          )}
+
+          {/* Video */}
+          {profile.videoURL && (
+            <>
+              <Divider sx={{ my: 3 }} />
+              <Typography variant="h6" gutterBottom>
+                Video Portfolio
+              </Typography>
+              <video
+                src={profile.videoURL}
+                controls
+                style={{
+                  width: "100%",
+                  maxHeight: 300,
+                  borderRadius: 12,
+                }}
+              />
             </>
           )}
 
