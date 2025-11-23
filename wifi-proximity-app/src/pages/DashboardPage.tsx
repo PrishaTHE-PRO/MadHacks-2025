@@ -222,13 +222,13 @@ export function DashboardPage() {
                       sx={{
                         position: "absolute",
                         inset: 0,
-                        bgcolor: "rgba(0, 0, 0, 0.45)",
+                        bgcolor: "rgba(0, 0, 0, 0.65)",
                       }}
                     />
 
                     <CardContent sx={{ position: "relative" }}>
                       <Typography variant="h6" gutterBottom>
-                        {event.name}
+                        <b>{event.name}</b>
                       </Typography>
 
                       <Stack spacing={0.5}>
