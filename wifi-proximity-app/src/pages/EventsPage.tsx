@@ -1,4 +1,5 @@
-import { Link } from "react-router-dom";
+import { useState } from "react";
+import { Link, useNavigate } from "react-router-dom";
 import {
   Box,
   Container,
@@ -7,13 +8,50 @@ import {
   CardContent,
   CardActions,
   Button,
+  Fab,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  TextField,
 } from "@mui/material";
+import AddIcon from "@mui/icons-material/Add";
 
 export function EventsPage() {
-  const events = [
-    { code: "DEMO123", name: "Demo Event 1" },
-    { code: "DEMO456", name: "Demo Event 2" },
-  ];
+  const [events, setEvents] = useState([
+    { code: "DEMO123", name: "Demo Event 1", joined: false },
+    { code: "DEMO456", name: "Demo Event 2", joined: false },
+  ]);
+  const [open, setOpen] = useState(false);
+  const [eventCode, setEventCode] = useState("");
+  const navigate = useNavigate();
+
+  const handleJoinEvent = () => {
+    if (eventCode.trim()) {
+      const code = eventCode.trim().toUpperCase();
+
+      // Check if event already exists
+      const existingEvent = events.find((e) => e.code === code);
+
+      if (existingEvent) {
+        // Mark existing event as joined
+        setEvents(events.map((e) =>
+          e.code === code ? { ...e, joined: true } : e
+        ));
+      } else {
+        // Add new event and mark as joined
+        setEvents([
+          ...events,
+          { code: code, name: `Event ${eventCode}`, joined: true },
+        ]);
+      }
+
+      // Navigate to nearby page for that event
+      navigate(`/nearby/${code}`);
+      setEventCode("");
+      setOpen(false);
+    }
+  };
 
   return (
     <Box
@@ -59,19 +97,58 @@ export function EventsPage() {
                   >
                     View Contacts
                   </Button>
-                  <Button
-                    size="small"
-                    component={Link}
-                    to={`/nearby/${event.code}`}
-                  >
-                    Find Nearby
-                  </Button>
+                  {event.joined && (
+                    <Button
+                      size="small"
+                      component={Link}
+                      to={`/nearby/${event.code}`}
+                    >
+                      Find Nearby
+                    </Button>
+                  )}
                 </CardActions>
               </Card>
             </Box>
           ))}
         </Box>
       </Container>
+
+      {/* Floating Action Button */}
+      <Fab
+        color="primary"
+        aria-label="add"
+        sx={{ position: "fixed", bottom: 24, right: 24 }}
+        onClick={() => setOpen(true)}
+      >
+        <AddIcon />
+      </Fab>
+
+      {/* Event Code Dialog */}
+      <Dialog open={open} onClose={() => setOpen(false)}>
+        <DialogTitle>Join Event</DialogTitle>
+        <DialogContent>
+          <TextField
+            autoFocus
+            margin="dense"
+            label="Event Code"
+            fullWidth
+            variant="outlined"
+            value={eventCode}
+            onChange={(e) => setEventCode(e.target.value.toUpperCase())}
+            onKeyPress={(e) => {
+              if (e.key === "Enter") {
+                handleJoinEvent();
+              }
+            }}
+          />
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setOpen(false)}>Cancel</Button>
+          <Button onClick={handleJoinEvent} variant="contained">
+            Join
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   );
 }

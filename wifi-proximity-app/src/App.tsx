@@ -9,6 +9,7 @@ import { DashboardPage } from "./pages/DashboardPage";
 import { ProfileEditPage } from "./pages/ProfileEditPage";
 import { ProfileMePage } from "./pages/ProfileMePage";
 import { PublicProfilePage } from "./pages/PublicProfilePage";
+import { ProfileViewPage } from "./pages/ProfileViewPage";
 import { NearbyPage } from "./pages/NearbyPage";
 import { EventsPage } from "./pages/EventsPage";
 import { EventContactsPage } from "./pages/EventContactsPage";
@@ -60,6 +61,16 @@ export default function App() {
 
         {/* public profile by slug – for sharing */}
         <Route path="/p/:slug" element={<PublicProfilePage />} />
+
+        {/* Profile view page with event context */}
+        <Route
+          path="/profile/view/:slug"
+          element={
+            <RequireAuth>
+              <ProfileViewPage />
+            </RequireAuth>
+          }
+        />
 
         {/* proximity & events also require login */}
         <Route
