@@ -14,25 +14,22 @@ import {
   Chip,
   Divider,
   Button,
-  Accordion,
-  AccordionSummary,
-  AccordionDetails,
 } from "@mui/material";
+import { keyframes } from "@mui/system";
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 import EmailIcon from "@mui/icons-material/Email";
 import PhoneIcon from "@mui/icons-material/Phone";
 import LinkedInIcon from "@mui/icons-material/LinkedIn";
 import LanguageIcon from "@mui/icons-material/Language";
 import PictureAsPdfIcon from "@mui/icons-material/PictureAsPdf";
-import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
-import SlideshowIcon from "@mui/icons-material/Slideshow";
-import defaultAvatar from "../assets/defaultAvatar.png";
+import PhotoLibraryIcon from "@mui/icons-material/PhotoLibrary";
+import MovieIcon from "@mui/icons-material/Movie";
 
 interface Profile {
   slug: string;
+  name: string;
   firstName?: string;
   lastName?: string;
-  name?: string;
   email?: string;
   phone?: string;
   bio?: string;
@@ -46,6 +43,19 @@ interface Profile {
   userId: string;
 }
 
+const floatIn = keyframes`
+  0% { opacity: 0; transform: translateY(16px); }
+  100% { opacity: 1; transform: translateY(0); }
+`;
+
+const cardHover = {
+  transition: "transform 0.25s ease, box-shadow 0.25s ease",
+  "&:hover": {
+    transform: "translateY(-4px)",
+    boxShadow: 8,
+  },
+};
+
 export function ProfileViewPage() {
   const { slug } = useParams<{ slug: string }>();
   const [searchParams] = useSearchParams();
@@ -53,31 +63,35 @@ export function ProfileViewPage() {
   const backTo = searchParams.get("back") || "events";
   const navigate = useNavigate();
   const { user } = useContext(AuthContext);
-
   const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
   const [saved, setSaved] = useState(false);
 
   useEffect(() => {
-    if (!slug) return;
-    getProfileBySlug(slug)
-      .then((data) => {
-        if (data) setProfile(data as Profile);
-      })
-      .finally(() => setLoading(false));
+    if (slug) {
+      getProfileBySlug(slug)
+        .then((data) => {
+          if (data) {
+            setProfile(data as Profile);
+          }
+        })
+        .finally(() => setLoading(false));
+    }
   }, [slug]);
 
   const handleBack = async () => {
+    // Save contact if we have event code and user
     if (user && eventCode && profile && !saved) {
       await saveInteraction({
         ownerUserId: user.uid,
         otherUserId: profile.userId,
-        eventCode,
+        eventCode: eventCode,
         note: "Met via proximity detection",
       });
       setSaved(true);
     }
 
+    // Navigate back
     if (backTo === "nearby" && eventCode) {
       navigate(`/nearby/${eventCode}`);
     } else if (backTo === "contacts" && eventCode) {
@@ -105,289 +119,226 @@ export function ProfileViewPage() {
     );
   }
 
-  const fullName =
-    (profile.firstName || profile.name || "") +
-    (profile.lastName ? ` ${profile.lastName}` : "");
+  const avatarInitial =
+    (profile.name || profile.firstName || "").trim().charAt(0).toUpperCase() ||
+    "U";
 
-  const hasResume = !!profile.resumeUrl;
-  const gallery = profile.galleryUrls || [];
-  const hasVideo = !!profile.videoUrl;
+  const gallery = (profile.galleryUrls || []).filter(Boolean);
 
   return (
     <Box
       sx={{
         minHeight: "100vh",
-        bgcolor: "#0b1020",
-        pt: 7,
-        pb: 4,
+        bgcolor: "#f5f5f5",
+        pt: 8,
+        background:
+          "radial-gradient(circle at top, rgba(25,118,210,0.13), transparent 60%)",
       }}
     >
-      {/* back button */}
+      {/* Back Button */}
       <Box sx={{ position: "fixed", top: 70, left: 16, zIndex: 1000 }}>
         <IconButton
           onClick={handleBack}
           sx={{
-            bgcolor: "rgba(15, 23, 42, 0.9)",
-            color: "white",
-            boxShadow: 4,
-            "&:hover": { bgcolor: "rgba(30, 64, 175, 0.9)" },
+            bgcolor: "white",
+            boxShadow: 2,
+            "&:hover": { bgcolor: "grey.100" },
           }}
         >
           <ArrowBackIcon />
         </IconButton>
       </Box>
 
-      <Container
-        maxWidth="xs"
-        sx={{
-          display: "flex",
-          justifyContent: "center",
-        }}
-      >
+      <Container maxWidth="sm" sx={{ py: 4 }}>
         <Paper
-          elevation={8}
+          elevation={4}
           sx={{
-            p: 3,
+            p: 4,
             borderRadius: 4,
-            width: "100%",
-            maxWidth: 420,
-            bgcolor: "rgba(15,23,42,0.96)",
-            color: "white",
-            backdropFilter: "blur(16px)",
-            boxShadow:
-              "0 24px 60px rgba(0,0,0,0.7), 0 0 0 1px rgba(148,163,184,0.2)",
+            animation: `${floatIn} 0.45s ease-out`,
+            ...cardHover,
           }}
         >
-          {/* header */}
-          <Stack spacing={2} alignItems="center">
+          {/* Profile Header */}
+          <Stack direction="column" alignItems="center" spacing={2}>
             <Avatar
-              src={profile.photoURL || defaultAvatar}
+              src={profile.photoURL || undefined}
               sx={{
                 width: 120,
                 height: 120,
-                borderRadius: "50%",
-                boxShadow: 6,
-                border: "3px solid rgba(148,163,184,0.7)",
+                bgcolor: "primary.main",
+                fontSize: 40,
               }}
-            />
-            <Typography variant="h5" align="center" sx={{ fontWeight: 600 }}>
-              {fullName || "Unnamed User"}
+            >
+              {avatarInitial}
+            </Avatar>
+            <Typography variant="h4" align="center">
+              {profile.name}
             </Typography>
+            {profile.bio && (
+              <Box sx={{ mt: 1, width: "100%" }}>
+                <Typography
+                  variant="subtitle2"
+                  sx={{ fontWeight: 600, mb: 0.5 }}
+                >
+                  Bio
+                </Typography>
+                <Typography
+                  variant="body1"
+                  color="text.secondary"
+                  sx={{ whiteSpace: "pre-line" }}
+                >
+                  {profile.bio}
+                </Typography>
+              </Box>
+            )}
           </Stack>
 
-          <Divider sx={{ my: 2, borderColor: "rgba(148,163,184,0.4)" }} />
+          <Divider sx={{ my: 3 }} />
 
-          {/* links + contact */}
-          <Stack spacing={1.5} sx={{ mb: 2 }}>
+          {/* Contact & Links */}
+          <Stack spacing={1.5}>
             {profile.email && (
-              <Stack direction="row" spacing={1} alignItems="center">
-                <EmailIcon fontSize="small" />
-                <Typography variant="body2" sx={{ wordBreak: "break-all" }}>
+              <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                <EmailIcon color="action" />
+                <Typography sx={{ wordBreak: "break-word" }}>
                   {profile.email}
                 </Typography>
-              </Stack>
+              </Box>
             )}
 
             {profile.phone && (
-              <Stack direction="row" spacing={1} alignItems="center">
-                <PhoneIcon fontSize="small" />
-                <Typography variant="body2">{profile.phone}</Typography>
-              </Stack>
+              <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                <PhoneIcon color="action" />
+                <Typography sx={{ wordBreak: "break-word" }}>
+                  {profile.phone}
+                </Typography>
+              </Box>
             )}
 
             {profile.linkedin && (
-              <Stack direction="row" spacing={1} alignItems="center">
-                <LinkedInIcon fontSize="small" />
+              <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                <LinkedInIcon color="action" />
                 <Typography
                   component="a"
                   href={profile.linkedin}
                   target="_blank"
-                  rel="noreferrer"
-                  variant="body2"
+                  rel="noopener noreferrer"
                   sx={{
-                    color: "rgb(96,165,250)",
                     textDecoration: "none",
-                    wordBreak: "break-all",
+                    color: "primary.main",
+                    wordBreak: "break-word",
                   }}
                 >
                   LinkedIn
                 </Typography>
-              </Stack>
+              </Box>
             )}
 
             {profile.website && (
-              <Stack direction="row" spacing={1} alignItems="center">
-                <LanguageIcon fontSize="small" />
+              <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                <LanguageIcon color="action" />
                 <Typography
                   component="a"
                   href={profile.website}
                   target="_blank"
-                  rel="noreferrer"
-                  variant="body2"
+                  rel="noopener noreferrer"
                   sx={{
-                    color: "rgb(96,165,250)",
                     textDecoration: "none",
-                    wordBreak: "break-all",
+                    color: "primary.main",
+                    wordBreak: "break-word",
                   }}
                 >
                   Website
                 </Typography>
-              </Stack>
+              </Box>
             )}
           </Stack>
-
-          {/* Bio */}
-          {profile.bio && (
-            <>
-              <Typography
-                variant="subtitle1"
-                sx={{ fontWeight: 600, mb: 0.5 }}
-              >
-                Bio
-              </Typography>
-              <Typography
-                variant="body2"
-                sx={{ mb: 2, color: "rgba(226,232,240,0.9)" }}
-              >
-                {profile.bio}
-              </Typography>
-            </>
-          )}
 
           {/* Interests */}
           {profile.interests && profile.interests.length > 0 && (
             <>
-              <Typography
-                variant="subtitle1"
-                sx={{ fontWeight: 600, mb: 1, mt: 1 }}
-              >
+              <Divider sx={{ my: 3 }} />
+              <Typography variant="h6" gutterBottom>
                 Interests
               </Typography>
-              <Box
-                sx={{
-                  display: "flex",
-                  flexWrap: "wrap",
-                  gap: 1,
-                  mb: 2,
-                }}
-              >
-                {profile.interests.map((interest, idx) => (
+              <Box sx={{ display: "flex", flexWrap: "wrap", gap: 1 }}>
+                {profile.interests.map((interest, index) => (
                   <Chip
-                    key={idx}
+                    key={index}
                     label={interest}
+                    color="primary"
                     variant="outlined"
-                    sx={{
-                      borderColor: "rgba(148,163,184,0.7)",
-                      color: "rgba(226,232,240,0.9)",
-                    }}
                   />
                 ))}
               </Box>
             </>
           )}
 
-          {/* Resume – only if present */}
-          {hasResume && (
+          {/* Resume */}
+          {profile.resumeUrl && (
             <>
-              <Accordion
+              <Divider sx={{ my: 3 }} />
+              <Stack direction="row" spacing={1} alignItems="center" mb={1}>
+                <PictureAsPdfIcon fontSize="small" />
+                <Typography variant="h6">Resume</Typography>
+              </Stack>
+              <Box
+                component="iframe"
+                src={profile.resumeUrl}
+                title="Resume"
                 sx={{
-                  bgcolor: "rgba(15,23,42,0.9)",
+                  width: "100%",
+                  height: 320,
                   borderRadius: 2,
-                  border: "1px solid rgba(148,163,184,0.5)",
-                  mb: 2,
-                  "&::before": { display: "none" },
+                  border: "1px solid",
+                  borderColor: "divider",
+                  bgcolor: "background.paper",
                 }}
-              >
-                <AccordionSummary
-                  expandIcon={<ExpandMoreIcon sx={{ color: "white" }} />}
-                >
-                  <Stack direction="row" spacing={1} alignItems="center">
-                    <PictureAsPdfIcon fontSize="small" />
-                    <Typography variant="subtitle2">View Résumé</Typography>
-                  </Stack>
-                </AccordionSummary>
-                <AccordionDetails>
-                  <Box
-                    sx={{
-                      width: "100%",
-                      height: 260,
-                      borderRadius: 2,
-                      overflow: "hidden",
-                      bgcolor: "black",
-                    }}
-                  >
-                    <object
-                      data={profile.resumeUrl}
-                      type="application/pdf"
-                      style={{ width: "100%", height: "100%" }}
-                    >
-                      <Typography
-                        variant="body2"
-                        sx={{ p: 2, color: "white" }}
-                      >
-                        Unable to preview PDF.{" "}
-                        <a
-                          href={profile.resumeUrl}
-                          target="_blank"
-                          rel="noreferrer"
-                          style={{ color: "#60a5fa" }}
-                        >
-                          Open in new tab
-                        </a>
-                        .
-                      </Typography>
-                    </object>
-                  </Box>
-                </AccordionDetails>
-              </Accordion>
+              />
             </>
           )}
 
-          {/* Gallery – only if there are images */}
+          {/* Photo Gallery */}
           {gallery.length > 0 && (
             <>
-              <Typography
-                variant="subtitle1"
-                sx={{ fontWeight: 600, mb: 1, mt: 1 }}
-              >
-                Gallery
-              </Typography>
+              <Divider sx={{ my: 3 }} />
+              <Stack direction="row" spacing={1} alignItems="center" mb={1}>
+                <PhotoLibraryIcon fontSize="small" />
+                <Typography variant="h6">Photos</Typography>
+              </Stack>
               <Box
                 sx={{
                   display: "flex",
-                  overflowX: "auto",
+                  flexDirection: "row",
                   gap: 1.5,
-                  pb: 1,
-                  mb: 2,
-                  "&::-webkit-scrollbar": {
-                    height: 6,
-                  },
-                  "&::-webkit-scrollbar-thumb": {
-                    background: "rgba(148,163,184,0.7)",
-                    borderRadius: 999,
-                  },
+                  overflowX: "auto",
+                  py: 1,
+                  px: 0.5,
                 }}
               >
                 {gallery.map((url, idx) => (
                   <Box
                     key={idx}
                     sx={{
-                      flexShrink: 0,
-                      width: 160,
-                      height: 120,
+                      flex: "0 0 70%",
+                      maxWidth: 280,
                       borderRadius: 2,
                       overflow: "hidden",
                       boxShadow: 3,
+                      ...cardHover,
                     }}
                   >
-                    <img
+                    <Box
+                      component="img"
                       src={url}
-                      alt={`gallery-${idx}`}
-                      style={{
+                      alt={`Gallery ${idx + 1}`}
+                      sx={{
+                        display: "block",
                         width: "100%",
                         height: "100%",
                         objectFit: "cover",
-                        display: "block",
+                        aspectRatio: "4 / 3",
                       }}
                     />
                   </Box>
@@ -396,79 +347,52 @@ export function ProfileViewPage() {
             </>
           )}
 
-          {/* Video – only if present */}
-          {hasVideo && (
+          {/* Video Portfolio */}
+          {profile.videoUrl && (
             <>
-              <Typography
-                variant="subtitle1"
-                sx={{ fontWeight: 600, mb: 1, mt: 1 }}
-              >
-                Video Portfolio
-              </Typography>
+              <Divider sx={{ my: 3 }} />
+              <Stack direction="row" spacing={1} alignItems="center" mb={1}>
+                <MovieIcon fontSize="small" />
+                <Typography variant="h6">Video Portfolio</Typography>
+              </Stack>
               <Box
+                component="video"
+                src={profile.videoUrl}
+                controls
                 sx={{
+                  width: "100%",
                   borderRadius: 2,
-                  overflow: "hidden",
                   boxShadow: 4,
-                  mb: 2,
-                  position: "relative",
+                  maxHeight: 320,
+                  objectFit: "cover",
                 }}
-              >
-                <Box
-                  sx={{
-                    position: "absolute",
-                    top: 8,
-                    left: 8,
-                    zIndex: 2,
-                    display: "flex",
-                    alignItems: "center",
-                    gap: 0.5,
-                    bgcolor: "rgba(15,23,42,0.7)",
-                    borderRadius: 999,
-                    px: 1.5,
-                    py: 0.25,
-                  }}
-                >
-                  <SlideshowIcon sx={{ fontSize: 16 }} />
-                  <Typography variant="caption">≤ 60s</Typography>
-                </Box>
-                <video
-                  src={profile.videoUrl}
-                  controls
-                  style={{
-                    width: "100%",
-                    maxHeight: 260,
-                    display: "block",
-                    background: "black",
-                  }}
-                />
-              </Box>
+              />
             </>
           )}
 
-          {/* Save & back button */}
-          <Box sx={{ mt: 2 }}>
+          {/* Action Button */}
+          <Box sx={{ mt: 4, display: "flex", justifyContent: "center" }}>
             <Button
               variant="contained"
               size="large"
               fullWidth
               onClick={handleBack}
             >
-              {saved ? "Contact Saved • Back" : "Save Contact & Back"}
+              {saved ? "Contact Saved! Go Back" : "Save Contact & Go Back"}
             </Button>
           </Box>
-
-          {eventCode && (
-            <Typography
-              variant="caption"
-              color="rgba(148,163,184,0.9)"
-              align="center"
-              sx={{ display: "block", mt: 1.5 }}
-            >
-              Met at event: {eventCode}
-            </Typography>
-          )}
         </Paper>
+
+        {eventCode && (
+          <Typography
+            variant="caption"
+            color="text.secondary"
+            align="center"
+            sx={{ display: "block", mt: 2 }}
+          >
+            Met at event: {eventCode}
+          </Typography>
+        )}
       </Container>
     </Box>
   );
