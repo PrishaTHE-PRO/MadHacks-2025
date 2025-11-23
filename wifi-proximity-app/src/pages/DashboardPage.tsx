@@ -18,10 +18,12 @@ import {
 } from "@mui/material";
 import { useContext, useState } from "react";
 import { ColorModeContext } from "../context/ColorModeContext";
+import { AuthContext } from "../context/AuthContext";
 import { useTheme } from "@mui/material/styles";
 import DarkModeIcon from "@mui/icons-material/DarkMode";
 import LightModeIcon from "@mui/icons-material/LightMode";
 import AddIcon from "@mui/icons-material/Add";
+
 
 type EventItem = {
   code: string;
@@ -31,9 +33,13 @@ type EventItem = {
 
 export function DashboardPage() {
   const { toggleColorMode } = useContext(ColorModeContext);
+  const { user } = useContext(AuthContext);
   const theme = useTheme();
   const navigate = useNavigate();
 
+  const username =
+    user?.displayName ||
+    (user?.email ? user.email.split("@")[0] : "back");
   const [events, setEvents] = useState<EventItem[]>([
     { code: "DEMO123", name: "Demo Event 1", joined: false },
     { code: "DEMO456", name: "Demo Event 2", joined: false },
@@ -86,7 +92,7 @@ export function DashboardPage() {
             justifyContent="space-between"
           >
             <Typography variant="h4" fontWeight={600}>
-              Dashboard
+              Events Dashboard
             </Typography>
             <IconButton onClick={toggleColorMode}>
               {theme.palette.mode === "dark" ? (
@@ -100,7 +106,7 @@ export function DashboardPage() {
           {/* quick actions */}
           <Stack spacing={2}>
             <Typography variant="body1">
-              Welcome to your dashboard!
+              Welcome  <b>{username}</b>!
             </Typography>
             <Stack direction={{ xs: "column", sm: "row" }} spacing={2}>
               <Button variant="contained" component={Link} to="/profile/me">
@@ -111,10 +117,6 @@ export function DashboardPage() {
 
           {/* events section */}
           <Stack spacing={2}>
-            <Typography variant="h6" fontWeight={600}>
-              Your Events
-            </Typography>
-
             <Box
               sx={{
                 display: "flex",
