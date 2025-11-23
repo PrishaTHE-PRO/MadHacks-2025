@@ -17,7 +17,6 @@ import {
   Avatar,
   Toolbar,
 } from "@mui/material";
-import { motion } from "framer-motion";
 import { BackButton } from "../components/BackButton";
 
 interface ContactProfile {
@@ -35,8 +34,6 @@ interface Contact {
   createdAt: any;
   profile: ContactProfile;
 }
-
-const MotionCard = motion(Card);
 
 export function EventContactsPage() {
   const { eventCode } = useParams<{ eventCode: string }>();
@@ -120,23 +117,19 @@ export function EventContactsPage() {
             </Button>
           </Paper>
         ) : (
-          <Stack spacing={2}>-
+          <Stack spacing={2}>
             {contacts.map((contact) => (
               <Card
                 key={contact.id}
                 sx={{ boxShadow: "0 6px 18px rgba(16,24,40,0.06)" }}
               >
                 <CardContent>
-                  <Box
-                    sx={{ display: "flex", alignItems: "center", gap: 2 }}
-                  >
+                  <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
                     <Avatar
                       src={contact.profile.photoURL}
                       sx={{ width: 56, height: 56 }}
                     >
-                      {contact.profile.name
-                        ?.charAt(0)
-                        .toUpperCase()}
+                      {contact.profile.name?.charAt(0).toUpperCase()}
                     </Avatar>
                     <Box sx={{ flex: 1 }}>
                       <Typography
@@ -144,8 +137,7 @@ export function EventContactsPage() {
                         sx={{
                           wordBreak: "break-word",
                           fontWeight: 700,
-                          textShadow:
-                            "0 1px 2px rgba(0,0,0,0.04)",
+                          textShadow: "0 1px 2px rgba(0,0,0,0.04)",
                         }}
                       >
                         {contact.profile.name}
@@ -156,8 +148,7 @@ export function EventContactsPage() {
                           color="text.secondary"
                           sx={{
                             wordBreak: "break-word",
-                            textShadow:
-                              "0 1px 2px rgba(0,0,0,0.03)",
+                            textShadow: "0 1px 2px rgba(0,0,0,0.03)",
                           }}
                         >
                           {contact.profile.email}
@@ -170,8 +161,7 @@ export function EventContactsPage() {
                           sx={{
                             fontStyle: "italic",
                             wordBreak: "break-word",
-                            textShadow:
-                              "0 1px 2px rgba(0,0,0,0.02)",
+                            textShadow: "0 1px 2px rgba(0,0,0,0.02)",
                           }}
                         >
                           {contact.note}
@@ -189,7 +179,7 @@ export function EventContactsPage() {
                     View Profile
                   </Button>
                 </CardActions>
-              </MotionCard>
+              </Card>
             ))}
           </Stack>
         )}

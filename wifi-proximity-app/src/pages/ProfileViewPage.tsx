@@ -16,6 +16,7 @@ import {
   Button,
 } from "@mui/material";
 import { keyframes } from "@mui/system";
+import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 import EmailIcon from "@mui/icons-material/Email";
 import PhoneIcon from "@mui/icons-material/Phone";
 import LinkedInIcon from "@mui/icons-material/LinkedIn";
@@ -23,7 +24,6 @@ import LanguageIcon from "@mui/icons-material/Language";
 import PictureAsPdfIcon from "@mui/icons-material/PictureAsPdf";
 import PhotoLibraryIcon from "@mui/icons-material/PhotoLibrary";
 import MovieIcon from "@mui/icons-material/Movie";
-import { BackButton } from "../components/BackButton";
 
 interface Profile {
   slug: string;
@@ -125,7 +125,6 @@ export function ProfileViewPage() {
     );
   }
 
-  // If we truly didn't find anything, don't render the card at all
   if (!profile) {
     return (
       <Box sx={{ display: "flex", justifyContent: "center", pt: 10 }}>
@@ -149,7 +148,6 @@ export function ProfileViewPage() {
           "radial-gradient(circle at top, rgba(25,118,210,0.13), transparent 60%)",
       }}
     >
-      {/* SIMPLE back button inside the content instead of a fixed floating one */}
       <Container maxWidth="sm" sx={{ py: 2 }}>
         <Button
           onClick={handleBack}
@@ -205,9 +203,181 @@ export function ProfileViewPage() {
 
           <Divider sx={{ my: 3 }} />
 
-          {/* Contact & Links, interests, resume, gallery, video – keep your existing sections here unchanged */}
-          {/* ... (you can paste your previous sections for email/phone/links/interests/resume/gallery/video) ... */}
+          {/* Contact & Links */}
+          <Stack spacing={1.5}>
+            {profile.email && (
+              <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                <EmailIcon color="action" />
+                <Typography sx={{ wordBreak: "break-word" }}>
+                  {profile.email}
+                </Typography>
+              </Box>
+            )}
 
+            {profile.phone && (
+              <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                <PhoneIcon color="action" />
+                <Typography sx={{ wordBreak: "break-word" }}>
+                  {profile.phone}
+                </Typography>
+              </Box>
+            )}
+
+            {profile.linkedin && (
+              <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                <LinkedInIcon color="action" />
+                <Typography
+                  component="a"
+                  href={profile.linkedin}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  sx={{
+                    textDecoration: "none",
+                    color: "primary.main",
+                    wordBreak: "break-word",
+                  }}
+                >
+                  LinkedIn
+                </Typography>
+              </Box>
+            )}
+
+            {profile.website && (
+              <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                <LanguageIcon color="action" />
+                <Typography
+                  component="a"
+                  href={profile.website}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  sx={{
+                    textDecoration: "none",
+                    color: "primary.main",
+                    wordBreak: "break-word",
+                  }}
+                >
+                  Website
+                </Typography>
+              </Box>
+            )}
+          </Stack>
+
+          {/* Interests */}
+          {profile.interests && profile.interests.length > 0 && (
+            <>
+              <Divider sx={{ my: 3 }} />
+              <Typography variant="h6" gutterBottom>
+                Interests
+              </Typography>
+              <Box sx={{ display: "flex", flexWrap: "wrap", gap: 1 }}>
+                {profile.interests.map((interest, index) => (
+                  <Chip
+                    key={index}
+                    label={interest}
+                    color="primary"
+                    variant="outlined"
+                  />
+                ))}
+              </Box>
+            </>
+          )}
+
+          {/* Resume */}
+          {profile.resumeUrl && (
+            <>
+              <Divider sx={{ my: 3 }} />
+              <Stack direction="row" spacing={1} alignItems="center" mb={1}>
+                <PictureAsPdfIcon fontSize="small" />
+                <Typography variant="h6">Resume</Typography>
+              </Stack>
+              <Box
+                component="iframe"
+                src={profile.resumeUrl}
+                title="Resume"
+                sx={{
+                  width: "100%",
+                  height: 320,
+                  borderRadius: 2,
+                  border: "1px solid",
+                  borderColor: "divider",
+                  bgcolor: "background.paper",
+                }}
+              />
+            </>
+          )}
+
+          {/* Photo Gallery */}
+          {gallery.length > 0 && (
+            <>
+              <Divider sx={{ my: 3 }} />
+              <Stack direction="row" spacing={1} alignItems="center" mb={1}>
+                <PhotoLibraryIcon fontSize="small" />
+                <Typography variant="h6">Photos</Typography>
+              </Stack>
+              <Box
+                sx={{
+                  display: "flex",
+                  flexDirection: "row",
+                  gap: 1.5,
+                  overflowX: "auto",
+                  py: 1,
+                  px: 0.5,
+                }}
+              >
+                {gallery.map((url, idx) => (
+                  <Box
+                    key={idx}
+                    sx={{
+                      flex: "0 0 70%",
+                      maxWidth: 280,
+                      borderRadius: 2,
+                      overflow: "hidden",
+                      boxShadow: 3,
+                      ...cardHover,
+                    }}
+                  >
+                    <Box
+                      component="img"
+                      src={url}
+                      alt={`Gallery ${idx + 1}`}
+                      sx={{
+                        display: "block",
+                        width: "100%",
+                        height: "100%",
+                        objectFit: "cover",
+                        aspectRatio: "4 / 3",
+                      }}
+                    />
+                  </Box>
+                ))}
+              </Box>
+            </>
+          )}
+
+          {/* Video Portfolio */}
+          {profile.videoUrl && (
+            <>
+              <Divider sx={{ my: 3 }} />
+              <Stack direction="row" spacing={1} alignItems="center" mb={1}>
+                <MovieIcon fontSize="small" />
+                <Typography variant="h6">Video Portfolio</Typography>
+              </Stack>
+              <Box
+                component="video"
+                src={profile.videoUrl}
+                controls
+                sx={{
+                  width: "100%",
+                  borderRadius: 2,
+                  boxShadow: 4,
+                  maxHeight: 320,
+                  objectFit: "cover",
+                }}
+              />
+            </>
+          )}
+
+          {/* Action Button */}
           <Box sx={{ mt: 4, display: "flex", justifyContent: "center" }}>
             <Button
               variant="contained"

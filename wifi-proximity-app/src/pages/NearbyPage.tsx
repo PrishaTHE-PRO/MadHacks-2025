@@ -28,9 +28,6 @@ import AddIcon from "@mui/icons-material/Add";
 import { fadeUp, float, slideLeft } from "../styles/animations";
 import { BackButton } from "../components/BackButton";
 
-// ------------------------------
-// TYPES
-// ------------------------------
 interface NearbyUser {
   deviceId: string;
   profileSlug: string;
@@ -40,39 +37,19 @@ interface NearbyUser {
 }
 
 const PROXIMITY_LATENCY_MS = 250; // treat <~250ms as "nearby"
-const PROXIMITY_RADIUS_FEET = 1; // just an approximate label
+const PROXIMITY_RADIUS_FEET = 1;  // just an approximate label
 
-// ------------------------------
-// DEVICE ID GENERATOR (clean)
-// ------------------------------
-const generateDeviceId = () => {
-  const c = (globalThis as any)?.crypto;
-  try {
-    if (c?.randomUUID) return c.randomUUID();
-    if (c?.getRandomValues) {
-      const arr = new Uint32Array(4);
-      c.getRandomValues(arr);
-      return Array.from(arr)
-        .map((n) => n.toString(16).padStart(8, "0"))
-        .join("-");
-    }
-  } catch { }
-  return `${Math.random().toString(36).slice(2)}-${Date.now()}`;
-};
-
-// ------------------------------
-// COMPONENT
-// ------------------------------
 export function NearbyPage() {
   const { eventCode } = useParams();
+  const navigate = useNavigate();
   const { user } = useContext(AuthContext);
+
   // stable per-user ID (so reloading the page doesn’t create “new devices”)
   const [deviceId] = useState(() => {
     if (user?.uid) return `uid-${user.uid}`;
-
-    // fallback for not logged in
     return "anon-" + Math.random().toString(36).slice(2);
   });
+
   const [myProfileSlug, setMyProfileSlug] = useState<string>("");
   const [others, setOthers] = useState<NearbyUser[]>([]);
   const [measuring, setMeasuring] = useState(false);
@@ -81,12 +58,12 @@ export function NearbyPage() {
   const autoOpenRef = useRef(true);
   const openedProfilesRef = useRef<Set<string>>(new Set());
 
-  // Keep ref synced
+  // keep ref in sync
   useEffect(() => {
     autoOpenRef.current = autoOpenEnabled;
   }, [autoOpenEnabled]);
 
-  // Load slug
+  // load my profile slug
   useEffect(() => {
     if (user) {
       getProfileByUid(user.uid).then((p) => {
@@ -95,9 +72,7 @@ export function NearbyPage() {
     }
   }, [user]);
 
-  // ------------------------------
-  // LATENCY MEASUREMENT
-  // ------------------------------
+  // latency measurement
   const measureLatency = useCallback(
     async (targetDeviceId: string): Promise<number> => {
       return new Promise((resolve) => {
@@ -105,7 +80,6 @@ export function NearbyPage() {
         const pingStart = Date.now();
 
         const handler = (data: any) => {
-          // only accept if it’s the device we pinged and the pong is for us
           if (
             data.fromDeviceId === targetDeviceId &&
             data.toDeviceId === deviceId
@@ -117,10 +91,8 @@ export function NearbyPage() {
         };
 
         socket.on("latencyPong", handler);
-
         socket.emit("latencyPing", { targetDeviceId, deviceId });
 
-        // timeout after 1s
         setTimeout(() => {
           socket.off("latencyPong", handler);
           resolve(9999);
@@ -130,9 +102,7 @@ export function NearbyPage() {
     [deviceId]
   );
 
-  // ------------------------------
-  // AUTOMATIC PROFILE OPEN
-  // ------------------------------
+  // auto profile open
   const openProfileIfClose = useCallback(
     async (
       otherUser: NearbyUser,
@@ -183,9 +153,7 @@ export function NearbyPage() {
     [user, eventCode, measureLatency, navigate]
   );
 
-  // ------------------------------
-  // SOCKET LISTENERS
-  // ------------------------------
+  // socket listeners
   useEffect(() => {
     if (!eventCode || !user) return;
 
@@ -219,19 +187,16 @@ export function NearbyPage() {
         timestamp: receivedAt,
       };
 
-      // Auto‑open if in range
       if (latency < PROXIMITY_LATENCY_MS) {
         void openProfileIfClose(incoming, { latencyOverride: latency });
       }
 
       setOthers((prev) => {
-        // 🔑 one card per profileSlug
         const existing = prev.find(
           (o) => o.profileSlug === data.profileSlug
         );
 
         if (existing) {
-          // Update the *current* deviceId + latency
           return prev.map((o) =>
             o.profileSlug === data.profileSlug
               ? {
@@ -244,8 +209,7 @@ export function NearbyPage() {
           );
         }
 
-        // New person
-        return [...prev, incomingUser];
+        return [...prev, incoming];
       });
     });
 
@@ -275,9 +239,7 @@ export function NearbyPage() {
     };
   }, [deviceId, eventCode, myProfileSlug, navigate, openProfileIfClose, user]);
 
-  // ------------------------------
   // UI
-  // ------------------------------
   return (
     <Box
       sx={{
@@ -288,7 +250,6 @@ export function NearbyPage() {
         bgcolor: "background.default",
       }}
     >
-      {/* Back arrow (animated swipe-left scoot) */}
       <BackButton />
 
       <Container
@@ -317,7 +278,7 @@ export function NearbyPage() {
             label={`Latency < ${PROXIMITY_LATENCY_MS}ms (~${PROXIMITY_RADIUS_FEET}ft)`}
           />
           <Typography variant="caption" color="text.secondary">
-            Auto pop‑up {autoOpenEnabled ? "ON" : "OFF"} (via +)
+            Auto pop-up {autoOpenEnabled ? "ON" : "OFF"} (via +)
           </Typography>
         </Stack>
 
@@ -363,7 +324,7 @@ export function NearbyPage() {
                       color="success.main"
                       sx={{ mt: 1, display: "block" }}
                     >
-                      ✅ In proximity — will auto‑open when + is ON
+                      ✅ In proximity — will auto-open when + is ON
                     </Typography>
                   )}
                 </CardContent>
@@ -408,7 +369,9 @@ export function NearbyPage() {
                     size="small"
                     onClick={() => {
                       if (!myProfileSlug) {
-                        alert("You need to set up your profile before sharing it.");
+                        alert(
+                          "You need to set up your profile before sharing it."
+                        );
                         return;
                       }
                       getProximitySocket().emit("shareProfile", {
@@ -429,8 +392,8 @@ export function NearbyPage() {
       <Tooltip
         title={
           autoOpenEnabled
-            ? `Auto pop‑up on (<${PROXIMITY_RADIUS_FEET}ft)`
-            : "Enable auto pop‑up (<3ft)"
+            ? `Auto pop-up on (<${PROXIMITY_RADIUS_FEET}ft)`
+            : "Enable auto pop-up (<3ft)"
         }
       >
         <Fab
