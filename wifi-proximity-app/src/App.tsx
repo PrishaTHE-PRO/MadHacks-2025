@@ -20,10 +20,39 @@ import { MapEventsPage } from "./pages/MapEventsPage";
 import { PageTransition } from "./components/PageTransition";
 
 function RequireAuth({ children }: { children: ReactElement }) {
-  const { user } = useContext(AuthContext);
-  if (!user) {
-    return <Navigate to="/login" replace />;
+  const { user, loading } = useContext(AuthContext);
+  const location = useLocation();
+
+  // 🔄 While Firebase is restoring the session, don't redirect anywhere
+  if (loading) {
+    return (
+      <PageTransition>
+        <div
+          style={{
+            minHeight: "100vh",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            fontFamily: "system-ui, sans-serif",
+          }}
+        >
+          Loading session…
+        </div>
+      </PageTransition>
+    );
   }
+
+  if (!user) {
+    // optional: remember where they were trying to go
+    return (
+      <Navigate
+        to="/login"
+        replace
+        state={{ from: location }}
+      />
+    );
+  }
+
   return children;
 }
 
