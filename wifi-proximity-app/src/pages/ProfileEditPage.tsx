@@ -23,6 +23,7 @@ export function ProfileEditPage() {
     <Box
       sx={{
         minHeight: "100vh",
+        pt: 8,
         display: "flex",
         alignItems: "center",
       }}
@@ -66,3 +67,4 @@ export function ProfileEditPage() {
     </Box>
   );
 }
+

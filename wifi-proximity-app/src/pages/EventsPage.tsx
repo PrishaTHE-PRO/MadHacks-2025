@@ -19,6 +19,7 @@ export function EventsPage() {
     <Box
       sx={{
         minHeight: "100vh",
+        pt: 8,
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
@@ -39,7 +40,10 @@ export function EventsPage() {
           }}
         >
           {events.map((event) => (
-            <Box key={event.code} sx={{ flex: "1 1 300px", maxWidth: 400 }}>
+            <Box
+              key={event.code}
+              sx={{ flex: "1 1 300px", maxWidth: 400 }}
+            >
               <Card elevation={3}>
                 <CardContent>
                   <Typography variant="h6">{event.name}</Typography>

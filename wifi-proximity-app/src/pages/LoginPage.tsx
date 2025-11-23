@@ -65,6 +65,7 @@ export function LoginPage() {
     <Box
       sx={{
         minHeight: "100vh",
+        pt: 8,
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
@@ -72,7 +73,12 @@ export function LoginPage() {
     >
       <Container maxWidth="xs">
         <Paper elevation={4} sx={{ p: 4, borderRadius: 3 }}>
-          <Typography variant="h5" component="h1" gutterBottom align="center">
+          <Typography
+            variant="h5"
+            component="h1"
+            gutterBottom
+            align="center"
+          >
             Login
           </Typography>
 

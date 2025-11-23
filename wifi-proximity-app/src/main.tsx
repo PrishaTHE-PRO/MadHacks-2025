@@ -6,7 +6,7 @@ import App from "./App";
 import { AuthProvider } from "./context/AuthContext";
 import { AppThemeProvider } from "./context/ColorModeContext";
 
-import "./index.css"; // keep your existing CSS
+import "./index.css";
 
 ReactDOM.createRoot(
   document.getElementById("root") as HTMLElement

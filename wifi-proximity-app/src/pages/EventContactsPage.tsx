@@ -13,6 +13,7 @@ export function EventContactsPage() {
     <Box
       sx={{
         minHeight: "100vh",
+        pt: 8,
         display: "flex",
         alignItems: "center",
       }}

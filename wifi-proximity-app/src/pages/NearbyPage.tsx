@@ -79,6 +79,7 @@ export function NearbyPage() {
     <Box
       sx={{
         minHeight: "100vh",
+        pt: 8,
         display: "flex",
         alignItems: "center",
       }}
@@ -93,7 +94,11 @@ export function NearbyPage() {
         </Typography>
 
         {others.length === 0 && (
-          <Typography variant="body2" color="text.secondary" sx={{ mt: 2 }}>
+          <Typography
+            variant="body2"
+            color="text.secondary"
+            sx={{ mt: 2 }}
+          >
             Waiting for other devices…
           </Typography>
         )}
