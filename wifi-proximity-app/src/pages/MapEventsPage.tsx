@@ -33,6 +33,7 @@ function haversineDistance(lat1: number, lon1: number, lat2: number, lon2: numbe
 export function MapEventsPage() {
   const mapContainer = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<mapboxgl.Map | null>(null);
+  const markersRef = useRef<Record<string, mapboxgl.Marker>>({});
   const [userLoc, setUserLoc] = useState<{ lat: number; lng: number } | null>(null);
   const [radiusMeters, setRadiusMeters] = useState(2000);
   const [nearbyEvents, setNearbyEvents] = useState<any[]>([]);
@@ -183,32 +184,125 @@ export function MapEventsPage() {
           .addTo(map);
       } catch { }
 
-      // fetch events and filter client-side
+      // fetch events and filter client-side (with debug logging)
       void (async () => {
-        const events = await getEventsNearby();
-        const filtered = events.filter((e) => {
-          if (e.lat == null || e.lng == null) return false;
-          const d = haversineDistance(lat, lng, e.lat, e.lng);
-          return d <= radiusMeters;
-        });
+        try {
+          const events = await getEventsNearby();
+          console.debug("MapEventsPage: fetched events count", events.length, events.slice(0, 5));
 
-        setNearbyEvents(filtered);
-
-        // render markers: remove existing and re-create so color reflects most recent start time
-        filtered.forEach((ev) => {
-          try {
-            const existing = (ev as any)._marker as mapboxgl.Marker | undefined;
-            if (existing) {
-              existing.remove();
-              (ev as any)._marker = undefined;
+          // ensure events have numeric lat/lng: geocode any missing coords (non-persistent)
+          const token = import.meta.env.VITE_MAPBOX_TOKEN as string | undefined;
+          const geocode = async (location: string) => {
+            if (!token || !location) return null;
+            try {
+              const q = encodeURIComponent(location);
+              const res = await fetch(
+                `https://api.mapbox.com/geocoding/v5/mapbox.places/${q}.json?access_token=${token}&limit=1`
+              );
+              if (!res.ok) return null;
+              const data = await res.json();
+              const feat = data?.features?.[0];
+              if (feat && feat.center && feat.center.length >= 2) {
+                return { lng: Number(feat.center[0]), lat: Number(feat.center[1]) };
+              }
+            } catch (e) {
+              console.warn("MapEventsPage: geocode failed for", location, e);
             }
-          } catch { }
+            return null;
+          };
 
-          (ev as any)._marker = new mapboxgl.Marker({ color: computeColorForEvent(ev) })
-            .setLngLat([ev.lng!, ev.lat!])
-            .setPopup(new mapboxgl.Popup({ offset: 12 }).setHTML(`<strong>${ev.name}</strong><br/>${ev.date} ${formatTime(ev.time)}`))
-            .addTo(map);
-        });
+          // resolve coords for events that lack them (in parallel, but allow failures)
+          const eventsWithCoords = await Promise.all(
+            events.map(async (ev) => {
+              if (ev.lat != null && ev.lng != null) return ev;
+              if (!ev.location) return ev;
+              const coords = await geocode(ev.location);
+              if (coords) {
+                return { ...ev, lat: coords.lat, lng: coords.lng };
+              }
+              return ev;
+            })
+          );
+
+          const filtered = eventsWithCoords.filter((e) => {
+            if (e.lat == null || e.lng == null) return false;
+            const d = haversineDistance(lat, lng, e.lat, e.lng);
+            return d <= radiusMeters;
+          });
+
+          console.debug("MapEventsPage: filtered events count", filtered.length, filtered.map((f) => ({ code: f.code, lat: f.lat, lng: f.lng })));
+
+          setNearbyEvents(filtered);
+
+          // remove stale markers (those not in the new filtered set)
+          const filteredCodes = new Set(filtered.map((e) => e.code));
+          Object.keys(markersRef.current).forEach((code) => {
+            if (!filteredCodes.has(code)) {
+              try {
+                markersRef.current[code].remove();
+              } catch (remErr) {
+                console.warn("MapEventsPage: failed to remove marker", code, remErr);
+              }
+              delete markersRef.current[code];
+            }
+          });
+
+          // create/update markers for filtered events
+          filtered.forEach((ev) => {
+            const code = ev.code as string;
+            try {
+              const latNum = Number(ev.lat);
+              const lngNum = Number(ev.lng);
+              if (Number.isNaN(latNum) || Number.isNaN(lngNum)) {
+                console.warn("MapEventsPage: skipping event with invalid coords", code, ev.lat, ev.lng);
+                return;
+              }
+
+              // remove existing marker for this code if present (we'll recreate/update)
+              if (markersRef.current[code]) {
+                try {
+                  markersRef.current[code].remove();
+                } catch (e) {
+                  console.warn("MapEventsPage: error removing existing marker", code, e);
+                }
+                delete markersRef.current[code];
+              }
+
+              const marker = new mapboxgl.Marker({ color: computeColorForEvent(ev) })
+                .setLngLat([lngNum, latNum])
+                .setPopup(new mapboxgl.Popup({ offset: 12 }).setHTML(`<strong>${ev.name}</strong><br/>${ev.date} ${formatTime(ev.time)}`))
+                .addTo(map);
+
+              markersRef.current[code] = marker;
+            } catch (err) {
+              console.error("MapEventsPage: failed to create marker for", code, err);
+            }
+          });
+
+          console.debug("MapEventsPage: current markers", Object.keys(markersRef.current));
+
+          // fit map bounds to include user location and event markers (only if there are markers)
+          try {
+            const bounds = new mapboxgl.LngLatBounds();
+            if (userLoc) bounds.extend([userLoc.lng, userLoc.lat]);
+            Object.values(markersRef.current).forEach((m) => {
+              try {
+                const ll = m.getLngLat();
+                bounds.extend([ll.lng, ll.lat]);
+              } catch (e) {
+                console.warn("MapEventsPage: failed to read marker lnglat", e);
+              }
+            });
+            // only fit if bounds have at least one point
+            if (!bounds.isEmpty()) {
+              map.fitBounds(bounds, { padding: 80, maxZoom: 14, duration: 400 });
+            }
+          } catch (e) {
+            console.warn("MapEventsPage: fitBounds failed", e);
+          }
+        } catch (fetchErr) {
+          console.error("MapEventsPage: failed to fetch or render nearby events", fetchErr);
+        }
       })();
 
       return () => {
