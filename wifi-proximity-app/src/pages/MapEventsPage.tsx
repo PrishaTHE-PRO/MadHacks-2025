@@ -98,6 +98,7 @@ export function MapEventsPage() {
       type: "geojson",
       data: {
         type: "Feature",
+        properties: {},
         geometry: {
           type: "Polygon",
           coordinates: [points],
@@ -142,7 +143,7 @@ export function MapEventsPage() {
           } catch {}
 
           (ev as any)._marker = new mapboxgl.Marker({ color: computeColorForEvent(ev) })
-            .setLngLat([ev.lng, ev.lat])
+            .setLngLat([ev.lng!, ev.lat!])
             .setPopup(new mapboxgl.Popup({ offset: 12 }).setHTML(`<strong>${ev.name}</strong><br/>${ev.date} ${formatTime(ev.time)}`))
             .addTo(map);
         });

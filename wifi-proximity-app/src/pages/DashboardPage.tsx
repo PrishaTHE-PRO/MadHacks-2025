@@ -185,45 +185,28 @@ export function DashboardPage() {
     // If user entered a time but not a date, default the date to today so the time is preserved
     let computedDate = newEventDate || "";
     let time = newEventTime || "";
-    // normalize time to HH:MM (accepts HH:MM, H:MM, with optional seconds, and AM/PM)
+
+    // Normalize time to HH:MM format
     if (time) {
       const raw = time.trim();
-      // accept forms like "9:30", "09:30", "09:30:00", "9:30am", "9:30 AM"
-      const m = raw.match(/^(\d{1,2})[:.](\d{1,2})(?::\d{1,2})?\s*(am|pm|AM|PM)?$/);
-      if (m) {
-        let hh = Number(m[1]);
-        const mm = Number(m[2]);
-        const ampm = m[3];
-        if (!Number.isFinite(hh) || !Number.isFinite(mm) || hh < 0 || hh > 23 || mm < 0 || mm > 59) {
-          console.warn("Invalid time provided:", time);
-          time = "";
+      // The time input field returns "HH:MM" or "HH:MM:SS", just extract HH:MM
+      const timeMatch = raw.match(/^(\d{1,2}):(\d{2})(?::\d{2})?$/);
+      if (timeMatch) {
+        const hh = parseInt(timeMatch[1], 10);
+        const mm = parseInt(timeMatch[2], 10);
+        if (hh >= 0 && hh <= 23 && mm >= 0 && mm <= 59) {
+          time = `${String(hh).padStart(2, "0")}:${String(mm).padStart(2, "0")}`;
         } else {
-          if (ampm) {
-            const lower = ampm.toLowerCase();
-            if (lower === "am") {
-              if (hh === 12) hh = 0;
-            } else if (lower === "pm") {
-              if (hh !== 12) hh = hh + 12;
-            }
-          }
-          const hhStr = String(Math.floor(hh)).padStart(2, "0");
-          const mmStr = String(Math.floor(mm)).padStart(2, "0");
-          time = `${hhStr}:${mmStr}`;
+          console.warn("Invalid time values:", time);
+          time = "";
         }
       } else {
-        // last attempt: try parsing with Date (handles some browser formats)
-        const dt = new Date(`1970-01-01T${raw}`);
-        if (!isNaN(dt.getTime())) {
-          const hhStr = String(dt.getHours()).padStart(2, "0");
-          const mmStr = String(dt.getMinutes()).padStart(2, "0");
-          time = `${hhStr}:${mmStr}`;
-        } else {
-          console.warn("Unexpected time format:", time);
-          time = "";
-        }
+        console.warn("Unexpected time format:", time);
+        time = "";
       }
     }
-  const location = newEventLocation || "TBD";
+
+    const location = newEventLocation || "TBD";
 
     if (!computedDate && time) {
       const today = new Date();
