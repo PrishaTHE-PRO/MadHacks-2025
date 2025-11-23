@@ -125,11 +125,10 @@ export function DashboardPage() {
       return nextEvents;
     });
 
-    // reset + close dialog + navigate
+    // reset + close dialog (stay on dashboard; use event card button to open Nearby)
     setEventCode("");
     setEventError("");
     setOpen(false);
-    navigate(`/nearby/${code}`);
   };
 
   return (
