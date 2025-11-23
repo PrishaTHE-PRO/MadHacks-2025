@@ -105,15 +105,16 @@ export function ProfileViewPage() {
       setSaved(true);
     }
 
+    // Always navigate to the specific route to avoid history loops
     if (backTo === "nearby" && eventCode) {
-      navigate(`/nearby/${eventCode}`);
+      navigate(`/nearby/${eventCode}`, { replace: true });
     } else if (backTo === "contacts" && eventCode) {
-      navigate(`/events/${eventCode}`);
+      navigate(`/events/${eventCode}`, { replace: true });
     } else if (eventCode) {
-      navigate(`/events/${eventCode}`);
+      navigate(`/events/${eventCode}`, { replace: true });
     } else {
       // fallback since /events route was removed
-      navigate("/dashboard");
+      navigate("/dashboard", { replace: true });
     }
   };
 

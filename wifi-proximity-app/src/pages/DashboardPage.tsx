@@ -23,7 +23,6 @@ import {
   Radio,
 } from "@mui/material";
 import { useContext, useState, useEffect } from "react";
-import { ColorModeContext } from "../context/ColorModeContext";
 import { AuthContext } from "../context/AuthContext";
 import graingerHallImg from "../assets/graingerhall.jpeg";
 import unionSouthImg from "../assets/unionsouth.jpeg";
@@ -31,8 +30,6 @@ import { storage, db } from "../firebase";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { doc as firestoreDoc, getDoc as getFirestoreDoc } from "firebase/firestore";
 import { useTheme } from "@mui/material/styles";
-import DarkModeIcon from "@mui/icons-material/DarkMode";
-import LightModeIcon from "@mui/icons-material/LightMode";
 import AddIcon from "@mui/icons-material/Add";
 import CalendarMonthIcon from "@mui/icons-material/CalendarMonth";
 import AccessTimeIcon from "@mui/icons-material/AccessTime";
@@ -49,6 +46,8 @@ import {
 import { motion } from "framer-motion";
 import LogoutIcon from '@mui/icons-material/Logout';
 import { logout } from "../services/authService";
+import { BackButton } from "../components/BackButton";
+import { ThemeSwitch } from "../components/ThemeSwitch";
 
 const MotionIconButton = motion(IconButton);
 
@@ -75,7 +74,6 @@ const pickImageForLocation = (location: string) => {
 };
 
 export function DashboardPage() {
-  const { toggleColorMode } = useContext(ColorModeContext);
   const { user } = useContext(AuthContext);
   const theme = useTheme();
   const navigate = useNavigate();
@@ -543,13 +541,7 @@ export function DashboardPage() {
                 profile.
               </Typography>
             </Box>
-            <IconButton onClick={toggleColorMode}>
-              {theme.palette.mode === "dark" ? (
-                <LightModeIcon />
-              ) : (
-                <DarkModeIcon />
-              )}
-            </IconButton>
+            <ThemeSwitch />
           </Stack>
 
           {/* Quick actions */}

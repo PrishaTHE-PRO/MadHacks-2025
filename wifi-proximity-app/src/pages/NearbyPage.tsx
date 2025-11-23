@@ -253,7 +253,7 @@ export function NearbyPage() {
         bgcolor: "background.default",
       }}
     >
-      <BackButton />
+      <BackButton onClick={() => navigate(`/events/${eventCode}`)} />
 
       <Container
         maxWidth="sm"
