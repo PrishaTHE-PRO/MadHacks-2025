@@ -1,4 +1,4 @@
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import {
   Box,
   Container,
@@ -19,6 +19,8 @@ import {
 import { useContext, useState, useEffect } from "react";
 import { ColorModeContext } from "../context/ColorModeContext";
 import { AuthContext } from "../context/AuthContext";
+import graingerHallImg from "../assets/graingerhall.jpeg";
+import unionSouthImg from "../assets/unionsouth.jpeg";
 import { useTheme } from "@mui/material/styles";
 import DarkModeIcon from "@mui/icons-material/DarkMode";
 import LightModeIcon from "@mui/icons-material/LightMode";
@@ -34,12 +36,14 @@ type EventItem = {
   time: string;
   location: string;
   joined: boolean;
+  image: string;
 };
 
 export function DashboardPage() {
   const { toggleColorMode } = useContext(ColorModeContext);
   const { user } = useContext(AuthContext);
   const theme = useTheme();
+  const navigate = useNavigate();
 
   const username =
     user?.displayName ||
@@ -53,6 +57,7 @@ export function DashboardPage() {
       time: "2:00–4:00 PM",
       location: "Union South, UW–Madison",
       joined: false,
+      image: unionSouthImg,
     },
     {
       code: "DEMO456",
@@ -61,12 +66,12 @@ export function DashboardPage() {
       time: "10:00–11:30 AM",
       location: "Grainger Hall",
       joined: false,
+      image: graingerHallImg,
     },
   ]);
 
   const [open, setOpen] = useState(false);
   const [eventCode, setEventCode] = useState("");
-  const [error, setError] = useState("");
 
   // Load joined events from localStorage on mount
   useEffect(() => {
@@ -74,7 +79,7 @@ export function DashboardPage() {
       const storageKey = `joinedEvents_${user.uid}`;
       const savedJoinedEvents = localStorage.getItem(storageKey);
       if (savedJoinedEvents) {
-        const joinedCodes = JSON.parse(savedJoinedEvents);
+        const joinedCodes: string[] = JSON.parse(savedJoinedEvents);
         setEvents((prev) =>
           prev.map((event) => ({
             ...event,
@@ -86,38 +91,54 @@ export function DashboardPage() {
   }, [user]);
 
   const handleJoinEvent = () => {
-    if (eventCode.trim() && user) {
-      const code = eventCode.trim().toUpperCase();
+    if (!eventCode.trim() || !user) return;
 
-      const existingEvent = events.find((e) => e.code === code);
+    const code = eventCode.trim().toUpperCase();
+    const storageKey = `joinedEvents_${user.uid}`;
+
+    setEvents((prevEvents) => {
+      const existingEvent = prevEvents.find((e) => e.code === code);
+      let nextEvents: EventItem[];
 
       if (existingEvent) {
         // mark existing event as joined
-        setEvents((prev) =>
-          prev.map((e) => (e.code === code ? { ...e, joined: true } : e))
+        nextEvents = prevEvents.map((e) =>
+          e.code === code ? { ...e, joined: true } : e
         );
-
-        // Save to localStorage
-        const storageKey = `joinedEvents_${user.uid}`;
-        const savedJoinedEvents = localStorage.getItem(storageKey);
-        const joinedCodes = savedJoinedEvents
-          ? JSON.parse(savedJoinedEvents)
-          : [];
-
-        if (!joinedCodes.includes(code)) {
-          joinedCodes.push(code);
-          localStorage.setItem(storageKey, JSON.stringify(joinedCodes));
-        }
-
-        // Close dialog and clear form
-        setEventCode("");
-        setError("");
-        setOpen(false);
       } else {
-        // Show error message - event doesn't exist
-        setError("That code does not exist. Please check and try again.");
+        // create a new event with default metadata + image
+        nextEvents = [
+          ...prevEvents,
+          {
+            code,
+            name: `Event ${eventCode}`,
+            date: "TBD",
+            time: "TBD",
+            location: "TBD",
+            joined: true,
+            image: unionSouthImg, // or graingerHallImg, or pick dynamically
+          },
+        ];
       }
-    }
+
+      // update joined codes in localStorage
+      const savedJoinedEvents = localStorage.getItem(storageKey);
+      const joinedCodes: string[] = savedJoinedEvents
+        ? JSON.parse(savedJoinedEvents)
+        : [];
+
+      if (!joinedCodes.includes(code)) {
+        joinedCodes.push(code);
+        localStorage.setItem(storageKey, JSON.stringify(joinedCodes));
+      }
+
+      return nextEvents;
+    });
+
+    // reset + close dialog + navigate
+    setEventCode("");
+    setOpen(false);
+    navigate(`/nearby/${code}`);
   };
 
   return (
@@ -184,40 +205,48 @@ export function DashboardPage() {
                   key={event.code}
                   sx={{ flex: "1 1 300px", maxWidth: 400 }}
                 >
-                  <Card elevation={3} sx={{ borderRadius: 3 }}>
-                    <CardContent>
+                  <Card
+                    elevation={3}
+                    sx={{
+                      borderRadius: 3,
+                      overflow: "hidden",
+                      position: "relative",
+                      backgroundImage: `url(${event.image})`,
+                      backgroundSize: "cover",
+                      backgroundPosition: "center",
+                      color: "common.white",
+                    }}
+                  >
+                    {/* overlay */}
+                    <Box
+                      sx={{
+                        position: "absolute",
+                        inset: 0,
+                        bgcolor: "rgba(0, 0, 0, 0.45)",
+                      }}
+                    />
+
+                    <CardContent sx={{ position: "relative" }}>
                       <Typography variant="h6" gutterBottom>
                         {event.name}
                       </Typography>
 
                       <Stack spacing={0.5}>
-                        <Stack
-                          direction="row"
-                          spacing={1}
-                          alignItems="center"
-                        >
+                        <Stack direction="row" spacing={1} alignItems="center">
                           <CalendarMonthIcon fontSize="small" />
                           <Typography variant="body2">
                             {event.date}
                           </Typography>
                         </Stack>
 
-                        <Stack
-                          direction="row"
-                          spacing={1}
-                          alignItems="center"
-                        >
+                        <Stack direction="row" spacing={1} alignItems="center">
                           <AccessTimeIcon fontSize="small" />
                           <Typography variant="body2">
                             {event.time}
                           </Typography>
                         </Stack>
 
-                        <Stack
-                          direction="row"
-                          spacing={1}
-                          alignItems="center"
-                        >
+                        <Stack direction="row" spacing={1} alignItems="center">
                           <PlaceIcon fontSize="small" />
                           <Typography variant="body2">
                             {event.location}
@@ -226,18 +255,19 @@ export function DashboardPage() {
 
                         <Typography
                           variant="body2"
-                          color="text.secondary"
-                          mt={0.5}
+                          sx={{ mt: 0.5, opacity: 0.85 }}
                         >
                           Code: {event.code}
                         </Typography>
                       </Stack>
                     </CardContent>
-                    <CardActions>
+
+                    <CardActions sx={{ position: "relative" }}>
                       <Button
                         size="small"
                         component={Link}
                         to={`/events/${event.code}`}
+                        sx={{ color: "common.white" }}
                       >
                         View Contacts
                       </Button>
@@ -246,6 +276,7 @@ export function DashboardPage() {
                           size="small"
                           component={Link}
                           to={`/nearby/${event.code}`}
+                          sx={{ color: "common.white" }}
                         >
                           Find Nearby
                         </Button>
@@ -274,7 +305,6 @@ export function DashboardPage() {
         open={open}
         onClose={() => {
           setOpen(false);
-          setError("");
           setEventCode("");
         }}
       >
@@ -289,7 +319,6 @@ export function DashboardPage() {
             value={eventCode}
             onChange={(e) => {
               setEventCode(e.target.value.toUpperCase());
-              setError("");
             }}
             onKeyDown={(e) => {
               if (e.key === "Enter") {
@@ -297,21 +326,11 @@ export function DashboardPage() {
               }
             }}
           />
-          {error && (
-            <Typography
-              color="error"
-              variant="body2"
-              sx={{ mt: 1, fontSize: "0.875rem" }}
-            >
-              {error}
-            </Typography>
-          )}
         </DialogContent>
         <DialogActions>
           <Button
             onClick={() => {
               setOpen(false);
-              setError("");
               setEventCode("");
             }}
           >
