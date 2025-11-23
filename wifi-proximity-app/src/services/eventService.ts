@@ -13,7 +13,7 @@ import {
 } from "firebase/firestore";
 
 /* -----------------------------------------------------
-   INTERACTIONS  (contacts saved when meeting someone)
+   INTERACTIONS (contacts saved when meeting someone)
 ------------------------------------------------------ */
 
 /**
@@ -23,7 +23,7 @@ import {
  */
 export async function saveInteraction(params: {
   ownerUserId: string;
-  otherUserId: string; // MUST be the UID
+  otherUserId: string; // MUST be the UID of the other user
   eventCode: string;
   note?: string;
 }) {
@@ -38,7 +38,9 @@ export async function saveInteraction(params: {
       ownerUserId,
       otherUserId,
       eventCode,
+      // if note is undefined, store empty string so EventContactsPage sees ""
       note: note ?? "",
+      favorite: false,
       createdAt: serverTimestamp(),
       updatedAt: serverTimestamp(),
     },
@@ -48,6 +50,8 @@ export async function saveInteraction(params: {
 
 /**
  * Update fields of an existing interaction (favorite, note, etc.)
+ * Passing `note` or `favorite` will overwrite that field.
+ * Leaving a field undefined will leave it unchanged.
  */
 export async function updateInteraction(params: {
   ownerUserId: string;
@@ -61,15 +65,19 @@ export async function updateInteraction(params: {
   const interactionId = `${ownerUserId}_${eventCode}_${otherUserId}`;
   const ref = doc(db, "interactions", interactionId);
 
-  await setDoc(
-    ref,
-    {
-      note: note ?? undefined,
-      favorite: favorite ?? undefined,
-      updatedAt: serverTimestamp(),
-    },
-    { merge: true }
-  );
+  const updateData: any = {
+    updatedAt: serverTimestamp(),
+  };
+
+  // only include fields that are actually provided
+  if (note !== undefined) {
+    updateData.note = note;
+  }
+  if (favorite !== undefined) {
+    updateData.favorite = favorite;
+  }
+
+  await setDoc(ref, updateData, { merge: true });
 }
 
 /**
@@ -139,6 +147,7 @@ export type FirestoreEvent = {
   location: string;
   createdByUid: string;
   imageUrl?: string;
+  // optional geo/time info for map
   lat?: number;
   lng?: number;
   startTimestamp?: number;
@@ -282,10 +291,12 @@ export async function deleteEventForUser(eventCode: string, uid: string) {
   const membershipRef = doc(db, MEMBERS_COLLECTION, `${uid}_${eventCode}`);
 
   if (event.createdByUid !== uid) {
+    // just leave the event
     await deleteDoc(membershipRef);
     return;
   }
 
+  // creator removing: delete event + their membership
   await Promise.all([deleteDoc(eventRef), deleteDoc(membershipRef)]);
 }
 
@@ -298,7 +309,7 @@ export async function getEventsNearby(): Promise<FirestoreEvent[]> {
 }
 
 /**
- * Get members of event
+ * Get members of an event
  */
 export async function getMembersForEvent(
   eventCode: string
@@ -308,5 +319,7 @@ export async function getMembersForEvent(
     where("eventCode", "==", eventCode)
   );
   const snaps = await getDocs(q);
-  return snaps.docs.map((d) => d.data() as { userId: string; role: Role });
+  return snaps.docs.map(
+    (d) => d.data() as { userId: string; role: Role }
+  );
 }
