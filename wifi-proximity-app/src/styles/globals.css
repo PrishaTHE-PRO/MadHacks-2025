@@ -13,8 +13,13 @@ body {
 }
 
 #root {
+  /* fill viewport and center children both vertically and horizontally */
   min-height: 100vh;
   padding: 20px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
 }
 
 h1 {
