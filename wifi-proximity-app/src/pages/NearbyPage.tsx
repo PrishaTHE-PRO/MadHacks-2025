@@ -40,7 +40,7 @@ const PROXIMITY_LATENCY_MS = 250; // treat <~250ms as "nearby"
 const PROXIMITY_RADIUS_FEET = 1;  // just an approximate label
 
 export function NearbyPage() {
-  const { eventCode } = useParams();
+  const { eventCode } = useParams<{ eventCode: string }>();
   const navigate = useNavigate();
   const { user } = useContext(AuthContext);
 
@@ -138,11 +138,11 @@ export function NearbyPage() {
         return;
       }
 
+      // ✅ match saveInteraction({ ownerUserId, otherUserId, eventCode, note? })
       await saveInteraction({
         ownerUserId: user.uid,
         otherUserId: otherUser.userId,
-        otherUserSlug: otherUser.profileSlug,
-        eventCode: eventCode,
+        eventCode: eventCode, // we already checked eventCode above
         note: `Auto-detected via WiFi proximity (${latency}ms latency)`,
       });
 
@@ -173,6 +173,7 @@ export function NearbyPage() {
     sendPresence();
     const interval = setInterval(sendPresence, 1500);
 
+    // receive presence from others
     socket.on("presence", (data: any) => {
       if (data.deviceId === deviceId) return;
 
@@ -213,15 +214,18 @@ export function NearbyPage() {
       });
     });
 
-    socket.on("ping", (data: any) => {
-      if (data.targetDeviceId === deviceId) {
-        socket.emit("pong", {
-          fromDeviceId: deviceId,
-          toDeviceId: data.deviceId,
-        });
-      }
+    // respond to latencyPing from server (relayed from other client)
+    socket.on("latencyPing", (data: any) => {
+      // server sends: { fromDeviceId, toDeviceId }
+      if (data.toDeviceId !== deviceId) return;
+
+      socket.emit("latencyPong", {
+        fromDeviceId: deviceId,
+        toDeviceId: data.fromDeviceId,
+      });
     });
 
+    // handle direct profile share
     socket.on("incomingProfile", (data: any) => {
       if (data.toDeviceId === deviceId) {
         navigate(
@@ -233,8 +237,7 @@ export function NearbyPage() {
     return () => {
       clearInterval(interval);
       socket.off("presence");
-      socket.off("ping");
-      socket.off("pong");
+      socket.off("latencyPing");
       socket.off("incomingProfile");
     };
   }, [deviceId, eventCode, myProfileSlug, navigate, openProfileIfClose, user]);
