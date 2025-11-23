@@ -1,4 +1,4 @@
-import { useState, useEffect, useContext } from "react";
+import { useState, useEffect, useContext, useRef } from "react";
 import {
   Box,
   Container,
@@ -7,35 +7,44 @@ import {
   Button,
   Typography,
   Stack,
+  Avatar,
   Divider,
 } from "@mui/material";
 import { useNavigate } from "react-router-dom";
 import { AuthContext } from "../context/AuthContext";
 import { saveProfile, getProfileByUid } from "../services/profileService";
+import PhotoCameraIcon from "@mui/icons-material/PhotoCamera";
+import UploadFileIcon from "@mui/icons-material/UploadFile";
+import MovieIcon from "@mui/icons-material/Movie";
+import ImageIcon from "@mui/icons-material/Image";
+
+// 🔥 Built‑in fallback avatar — no file needed, cannot break
+const FALLBACK_AVATAR =
+  "data:image/svg+xml;base64,PHN2ZyBmaWxsPSIjYmJiIiB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxMjAiIGhlaWdodD0iMTIwIiB2aWV3Qm94PSIwIDAgMjQgMjQiPjxjaXJjbGUgY3g9IjEyIiBjeT0iNyIgcj0iNSIvPjxwYXRoIGQ9Ik0xMiAxNGMtNC4xIDAtOCAyLjItOCA0djJoMTZ2LTJjMC0xLjgtMy45LTQtOC00eiIvPjwvc3ZnPg==";
 
 export function ProfileEditPage() {
-  const [firstName, setFirstName] = useState("");
-  const [lastName, setLastName] = useState("");
-  const [bio, setBio] = useState("");
-  const [linkedin, setLinkedin] = useState("");
-  const [website, setWebsite] = useState("");
-  const [photoURL, setPhotoURL] = useState("");
-  const [resumeURL, setResumeURL] = useState("");
-  const [image1, setImage1] = useState("");
-  const [image2, setImage2] = useState("");
-  const [image3, setImage3] = useState("");
-  const [image4, setImage4] = useState("");
-  const [image5, setImage5] = useState("");
-  const [videoURL, setVideoURL] = useState("");
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
-
   const { user } = useContext(AuthContext);
   const navigate = useNavigate();
 
-  // Load existing profile
+  const [firstName, setFirstName] = useState("");
+  const [lastName, setLastName] = useState("");
+  const [bio, setBio] = useState("");
+  const [interests, setInterests] = useState("");
+  const [linkedin, setLinkedin] = useState("");
+  const [website, setWebsite] = useState("");
+  const [photoURL, setPhotoURL] = useState<string>("");
+  const [resumeUrl, setResumeUrl] = useState("");
+  const [galleryUrls, setGalleryUrls] = useState<string[]>([]);
+  const [videoUrl, setVideoUrl] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+
+  const objectUrlsRef = useRef<string[]>([]);
+
+  // LOAD EXISTING PROFILE
   useEffect(() => {
     if (!user) return;
+
     let mounted = true;
 
     (async () => {
@@ -43,20 +52,19 @@ export function ProfileEditPage() {
         const p = await getProfileByUid(user.uid);
         if (!mounted || !p) return;
 
-        setFirstName(p.firstName || "");
-        setLastName(p.lastName || "");
+        const nameParts = (p.name || "").split(" ");
+
+        setFirstName(p.firstName || nameParts[0] || "");
+        setLastName(p.lastName || nameParts.slice(1).join(" ") || "");
         setBio(p.bio || "");
+        setInterests(Array.isArray(p.interests) ? p.interests.join(", ") : p.interests || "");
         setLinkedin(p.linkedin || "");
         setWebsite(p.website || "");
+
         setPhotoURL(p.photoURL || "");
-        setResumeURL(p.resumeURL || "");
-        const imgs: string[] = Array.isArray(p.images) ? p.images : [];
-        setImage1(imgs[0] || "");
-        setImage2(imgs[1] || "");
-        setImage3(imgs[2] || "");
-        setImage4(imgs[3] || "");
-        setImage5(imgs[4] || "");
-        setVideoURL(p.videoURL || "");
+        setResumeUrl(p.resumeUrl || "");
+        setGalleryUrls(p.galleryUrls || []);
+        setVideoUrl(p.videoUrl || "");
       } catch (err) {
         console.error("Failed to load profile:", err);
       }
@@ -64,195 +72,208 @@ export function ProfileEditPage() {
 
     return () => {
       mounted = false;
+      objectUrlsRef.current.forEach((url) => URL.revokeObjectURL(url));
     };
   }, [user]);
+
+  const pushObjectUrl = (url: string) => {
+    objectUrlsRef.current.push(url);
+  };
+
+  const handlePhotoFile = (file: File | null) => {
+    if (!file) return;
+    const url = URL.createObjectURL(file);
+    pushObjectUrl(url);
+    setPhotoURL(url);
+  };
+
+  const handleResumeFile = (file: File | null) => {
+    if (!file) return;
+    if (file.type !== "application/pdf") {
+      setError("Resume must be a PDF file.");
+      return;
+    }
+    const url = URL.createObjectURL(file);
+    pushObjectUrl(url);
+    setResumeUrl(url);
+  };
+
+  const handleGalleryFiles = (files: FileList | null) => {
+    if (!files) return;
+    const urls: string[] = [];
+
+    Array.from(files)
+      .slice(0, 5)
+      .forEach((file) => {
+        if (file.type.startsWith("image/")) {
+          const url = URL.createObjectURL(file);
+          pushObjectUrl(url);
+          urls.push(url);
+        }
+      });
+
+    if (urls.length) setGalleryUrls(urls);
+  };
+
+  const handleVideoFile = (file: File | null) => {
+    if (!file) return;
+    if (!file.type.startsWith("video/")) {
+      setError("Video must be a valid video file.");
+      return;
+    }
+
+    const tempUrl = URL.createObjectURL(file);
+    const video = document.createElement("video");
+
+    video.preload = "metadata";
+    video.src = tempUrl;
+
+    video.onloadedmetadata = () => {
+      URL.revokeObjectURL(video.src);
+      if (video.duration > 60) {
+        setError("Video must be under 60 seconds!");
+        return;
+      }
+      pushObjectUrl(tempUrl);
+      setVideoUrl(tempUrl);
+    };
+  };
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
 
-    if (!user) {
-      setError("You must be signed in to save your profile.");
-      return;
-    }
+    if (!user) return setError("You must be signed in.");
 
     setLoading(true);
-    try {
-      const images = [image1, image2, image3, image4, image5].filter(Boolean);
 
+    try {
       await saveProfile(user.uid, {
         firstName,
         lastName,
+        name: `${firstName} ${lastName}`.trim(),
         bio,
+        interests: interests.split(",").map((v) => v.trim()).filter(Boolean),
         linkedin,
         website,
         photoURL,
-        resumeURL,
-        images,
-        videoURL,
+        resumeUrl,
+        galleryUrls,
+        videoUrl,
       });
 
       navigate("/profile/me");
     } catch (err) {
       console.error(err);
-      setError("Failed to save profile. Check console for details.");
+      setError("Failed to save profile.");
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <Box
-      sx={{
-        minHeight: "100vh",
-        pt: 8,
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-      }}
-    >
+    <Box sx={{ minHeight: "100vh", pt: 8, display: "flex", alignItems: "center", justifyContent: "center" }}>
       <Container maxWidth="sm">
-        <Paper sx={{ p: 4, borderRadius: 3 }}>
-          <Typography variant="h5" gutterBottom>
+        <Paper sx={{ p: 4, borderRadius: 4, boxShadow: 6 }}>
+          <Typography variant="h5" align="center" gutterBottom>
             Edit Profile
           </Typography>
-          <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-            Fill out as much as you want — empty fields won&apos;t show on your
-            public profile.
-          </Typography>
+
+          {/* Avatar */}
+          <Stack spacing={3} alignItems="center" sx={{ mb: 2 }}>
+            <Avatar
+              src={photoURL || FALLBACK_AVATAR}
+              sx={{
+                width: 120,
+                height: 120,
+                border: "3px solid white",
+                boxShadow: 4,
+              }}
+            />
+
+            <Stack direction="row" spacing={1}>
+              <Button variant="outlined" component="label" startIcon={<PhotoCameraIcon />}>
+                Upload Photo
+                <input type="file" accept="image/*" hidden onChange={(e) => handlePhotoFile(e.target.files?.[0] || null)} />
+              </Button>
+
+              <TextField
+                size="small"
+                label="Photo URL"
+                value={photoURL}
+                onChange={(e) => setPhotoURL(e.target.value)}
+              />
+            </Stack>
+          </Stack>
 
           <Box component="form" onSubmit={handleSave}>
             <Stack spacing={2}>
-              {/* Name */}
               <Stack direction={{ xs: "column", sm: "row" }} spacing={2}>
+                <TextField label="First Name" fullWidth value={firstName} onChange={(e) => setFirstName(e.target.value)} />
+                <TextField label="Last Name" fullWidth value={lastName} onChange={(e) => setLastName(e.target.value)} />
+              </Stack>
+
+              <TextField label="Bio" fullWidth multiline minRows={3} value={bio} onChange={(e) => setBio(e.target.value)} />
+
+              <TextField
+                label="Interests (comma separated)"
+                fullWidth
+                value={interests}
+                onChange={(e) => setInterests(e.target.value)}
+              />
+
+              <Stack direction={{ xs: "column", sm: "row" }} spacing={2}>
+                <TextField label="LinkedIn URL" fullWidth value={linkedin} onChange={(e) => setLinkedin(e.target.value)} />
+                <TextField label="Website" fullWidth value={website} onChange={(e) => setWebsite(e.target.value)} />
+              </Stack>
+
+              <Divider />
+
+              <Typography variant="subtitle1">Resume (PDF)</Typography>
+              <Stack direction={{ xs: "column", sm: "row" }} spacing={2}>
+                <Button variant="outlined" component="label" startIcon={<UploadFileIcon />}>
+                  Upload PDF
+                  <input type="file" accept="application/pdf" hidden onChange={(e) => handleResumeFile(e.target.files?.[0] || null)} />
+                </Button>
+
+                <TextField label="Resume URL" fullWidth value={resumeUrl} onChange={(e) => setResumeUrl(e.target.value)} />
+              </Stack>
+
+              <Divider />
+
+              <Typography variant="subtitle1">Photo Gallery (up to 5)</Typography>
+              <Stack direction={{ xs: "column", sm: "row" }} spacing={2}>
+                <Button variant="outlined" component="label" startIcon={<ImageIcon />}>
+                  Upload Images
+                  <input type="file" accept="image/*" multiple hidden onChange={(e) => handleGalleryFiles(e.target.files)} />
+                </Button>
+
                 <TextField
-                  label="First name"
+                  label="Image URLs (optional)"
                   fullWidth
-                  value={firstName}
-                  onChange={(e) => setFirstName(e.target.value)}
-                  disabled={loading}
-                />
-                <TextField
-                  label="Last name"
-                  fullWidth
-                  value={lastName}
-                  onChange={(e) => setLastName(e.target.value)}
-                  disabled={loading}
+                  value={galleryUrls.join(", ")}
+                  onChange={(e) =>
+                    setGalleryUrls(e.target.value.split(",").map((v) => v.trim()).filter(Boolean))
+                  }
                 />
               </Stack>
 
-              {/* Bio */}
-              <TextField
-                label="Bio"
-                fullWidth
-                multiline
-                minRows={3}
-                value={bio}
-                onChange={(e) => setBio(e.target.value)}
-                disabled={loading}
-              />
+              <Divider />
 
-              <Divider sx={{ my: 1 }} />
+              <Typography variant="subtitle1">Video Portfolio (max 60 seconds)</Typography>
+              <Stack direction={{ xs: "column", sm: "row" }} spacing={2}>
+                <Button variant="outlined" component="label" startIcon={<MovieIcon />}>
+                  Upload Video
+                  <input type="file" accept="video/*" hidden onChange={(e) => handleVideoFile(e.target.files?.[0] || null)} />
+                </Button>
 
-              {/* Links */}
-              <TextField
-                label="LinkedIn URL"
-                placeholder="https://www.linkedin.com/in/your-handle"
-                fullWidth
-                value={linkedin}
-                onChange={(e) => setLinkedin(e.target.value)}
-                disabled={loading}
-              />
-              <TextField
-                label="Website / Portfolio URL"
-                placeholder="https://yourwebsite.com"
-                fullWidth
-                value={website}
-                onChange={(e) => setWebsite(e.target.value)}
-                disabled={loading}
-              />
+                <TextField label="Video URL (optional)" fullWidth value={videoUrl} onChange={(e) => setVideoUrl(e.target.value)} />
+              </Stack>
 
-              <Divider sx={{ my: 1 }} />
+              {error && <Typography color="error">{error}</Typography>}
 
-              {/* Media URLs */}
-              <TextField
-                label="Profile picture URL"
-                placeholder="Paste an image URL (will show as a circle)"
-                fullWidth
-                value={photoURL}
-                onChange={(e) => setPhotoURL(e.target.value)}
-                disabled={loading}
-              />
-
-              <TextField
-                label="Resume PDF URL"
-                placeholder="Paste a PDF URL (Google Drive, etc.)"
-                fullWidth
-                value={resumeURL}
-                onChange={(e) => setResumeURL(e.target.value)}
-                disabled={loading}
-              />
-
-              <Divider sx={{ my: 1 }} />
-
-              <Typography variant="subtitle1">
-                Gallery (up to 5 image URLs)
-              </Typography>
-              <TextField
-                label="Image 1 URL"
-                fullWidth
-                value={image1}
-                onChange={(e) => setImage1(e.target.value)}
-                disabled={loading}
-              />
-              <TextField
-                label="Image 2 URL"
-                fullWidth
-                value={image2}
-                onChange={(e) => setImage2(e.target.value)}
-                disabled={loading}
-              />
-              <TextField
-                label="Image 3 URL"
-                fullWidth
-                value={image3}
-                onChange={(e) => setImage3(e.target.value)}
-                disabled={loading}
-              />
-              <TextField
-                label="Image 4 URL"
-                fullWidth
-                value={image4}
-                onChange={(e) => setImage4(e.target.value)}
-                disabled={loading}
-              />
-              <TextField
-                label="Image 5 URL"
-                fullWidth
-                value={image5}
-                onChange={(e) => setImage5(e.target.value)}
-                disabled={loading}
-              />
-
-              <Divider sx={{ my: 1 }} />
-
-              <TextField
-                label="Video URL (max 1 minute)"
-                placeholder="Paste a hosted video URL"
-                fullWidth
-                value={videoURL}
-                onChange={(e) => setVideoURL(e.target.value)}
-                disabled={loading}
-              />
-
-              {error && (
-                <Typography color="error" variant="body2">
-                  {error}
-                </Typography>
-              )}
-
-              <Button type="submit" variant="contained" disabled={loading}>
-                {loading ? "Saving..." : "Save"}
+              <Button variant="contained" type="submit" disabled={loading}>
+                {loading ? "Saving…" : "Save Profile"}
               </Button>
             </Stack>
           </Box>

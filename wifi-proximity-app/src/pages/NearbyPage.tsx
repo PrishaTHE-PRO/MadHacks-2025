@@ -1,4 +1,11 @@
-import { useEffect, useState, useContext, useRef, useCallback } from "react";
+// src/pages/NearbyPage.tsx
+import {
+  useEffect,
+  useState,
+  useContext,
+  useRef,
+  useCallback,
+} from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { getProximitySocket } from "../services/proximityService";
 import { AuthContext } from "../context/AuthContext";
@@ -18,6 +25,7 @@ import {
 } from "@mui/material";
 import { saveInteraction } from "../services/eventService";
 import AddIcon from "@mui/icons-material/Add";
+import { fadeUp, float, slideLeft } from "../styles/animations";
 
 interface NearbyUser {
   deviceId: string;
@@ -37,10 +45,17 @@ export function NearbyPage() {
   const [others, setOthers] = useState<NearbyUser[]>([]);
   const [measuring, setMeasuring] = useState(false);
   const [autoOpenEnabled, setAutoOpenEnabled] = useState(true);
+
   const autoOpenRef = useRef(true);
   const openedProfilesRef = useRef<Set<string>>(new Set());
   const navigate = useNavigate();
 
+  // Keep ref in sync with state
+  useEffect(() => {
+    autoOpenRef.current = autoOpenEnabled;
+  }, [autoOpenEnabled]);
+
+  // Load my profile slug
   useEffect(() => {
     if (user) {
       getProfileByUid(user.uid).then((profile) => {
@@ -51,10 +66,7 @@ export function NearbyPage() {
     }
   }, [user]);
 
-  useEffect(() => {
-    autoOpenRef.current = autoOpenEnabled;
-  }, [autoOpenEnabled]);
-
+  // Measure latency to another device
   const measureLatency = useCallback(
     async (targetDeviceId: string): Promise<number> => {
       return new Promise((resolve) => {
@@ -70,13 +82,14 @@ export function NearbyPage() {
           }
         });
 
-        // Timeout after 1 second
+        // Timeout after 1s
         setTimeout(() => resolve(9999), 1000);
       });
     },
     [deviceId]
   );
 
+  // Open profile if the other user is close enough
   const openProfileIfClose = useCallback(
     async (
       otherUser: NearbyUser,
@@ -88,7 +101,12 @@ export function NearbyPage() {
     ) => {
       if (!user || !eventCode) return;
 
-      const { latencyOverride, ignoreAutoOpenGate = false, allowRepeat = false } = options;
+      const {
+        latencyOverride,
+        ignoreAutoOpenGate = false,
+        allowRepeat = false,
+      } = options;
+
       const latency =
         latencyOverride !== undefined
           ? latencyOverride
@@ -98,7 +116,8 @@ export function NearbyPage() {
       if (!withinRange) return;
 
       if (!ignoreAutoOpenGate && !autoOpenRef.current) return;
-      if (!allowRepeat && openedProfilesRef.current.has(otherUser.deviceId)) return;
+      if (!allowRepeat && openedProfilesRef.current.has(otherUser.deviceId))
+        return;
 
       openedProfilesRef.current.add(otherUser.deviceId);
 
@@ -116,28 +135,13 @@ export function NearbyPage() {
     [eventCode, measureLatency, navigate, user]
   );
 
+  // Socket wiring
   useEffect(() => {
-    if (!eventCode || !myProfileSlug) {
-      console.log("❌ Missing eventCode or myProfileSlug:", { eventCode, myProfileSlug });
-      return;
-    }
+    if (!eventCode || !myProfileSlug) return;
+
     const socket = getProximitySocket();
 
-    console.log("✅ My device ID:", deviceId);
-    console.log("✅ My profile slug:", myProfileSlug);
-    console.log("✅ Event code:", eventCode);
-    console.log("✅ Socket connected:", socket.connected);
-
-    socket.on("connect", () => {
-      console.log("🟢 Socket.IO connected! ID:", socket.id);
-    });
-
-    socket.on("connect_error", (error) => {
-      console.error("🔴 Socket.IO connection error:", error);
-    });
-
     const sendPresence = () => {
-      console.log("📡 Broadcasting presence...");
       socket.emit("presence", {
         eventCode,
         deviceId,
@@ -150,12 +154,10 @@ export function NearbyPage() {
     const interval = setInterval(sendPresence, 1500);
 
     socket.on("presence", (data: any) => {
-      console.log("👋 Received presence from:", data.profileSlug, "Device:", data.deviceId);
       if (data.deviceId === deviceId) return;
 
       const receivedAt = Date.now();
       const latency = receivedAt - (data.timestamp || receivedAt);
-      console.log("📊 Latency calculated:", latency, "ms");
 
       const incomingUser: NearbyUser = {
         deviceId: data.deviceId,
@@ -164,31 +166,38 @@ export function NearbyPage() {
         timestamp: receivedAt,
       };
 
+      // Auto-open if close enough
       if (latency < PROXIMITY_LATENCY_MS) {
-        openProfileIfClose(incomingUser, { latencyOverride: latency });
+        void openProfileIfClose(incomingUser, { latencyOverride: latency });
       }
 
       setOthers((prev) => {
         const existing = prev.find((o) => o.deviceId === data.deviceId);
         if (existing) {
           return prev.map((o) =>
-            o.deviceId === data.deviceId ? { ...o, latency, timestamp: receivedAt } : o
+            o.deviceId === data.deviceId
+              ? { ...o, latency, timestamp: receivedAt }
+              : o
           );
         }
-
         return [...prev, incomingUser];
       });
     });
 
     socket.on("ping", (data: any) => {
       if (data.targetDeviceId === deviceId) {
-        socket.emit("pong", { fromDeviceId: deviceId, toDeviceId: data.deviceId });
+        socket.emit("pong", {
+          fromDeviceId: deviceId,
+          toDeviceId: data.deviceId,
+        });
       }
     });
 
     socket.on("incomingProfile", (data: any) => {
       if (data.toDeviceId === deviceId) {
-        navigate(`/profile/view/${data.profileSlug}?eventCode=${eventCode}&back=nearby`);
+        navigate(
+          `/profile/view/${data.profileSlug}?eventCode=${eventCode}&back=nearby`
+        );
       }
     });
 
@@ -199,7 +208,7 @@ export function NearbyPage() {
       socket.off("pong");
       socket.off("incomingProfile");
     };
-  }, [deviceId, eventCode, myProfileSlug, navigate, openProfileIfClose, user]);
+  }, [deviceId, eventCode, myProfileSlug, navigate, openProfileIfClose]);
 
   return (
     <Box
@@ -208,9 +217,15 @@ export function NearbyPage() {
         pt: 8,
         display: "flex",
         alignItems: "center",
+        bgcolor: "background.default",
       }}
     >
-      <Container maxWidth="sm">
+      <Container
+        maxWidth="sm"
+        sx={{
+          animation: `${fadeUp} 0.6s ease-out`,
+        }}
+      >
         <Typography variant="h5" gutterBottom>
           Nearby people at {eventCode}
         </Typography>
@@ -218,7 +233,13 @@ export function NearbyPage() {
           Anyone on the same WiFi with this page open and event code selected
           will appear here.
         </Typography>
-        <Stack direction="row" alignItems="center" spacing={1} sx={{ mt: 1 }}>
+
+        <Stack
+          direction="row"
+          alignItems="center"
+          spacing={1}
+          sx={{ mt: 1, animation: `${slideLeft} 0.5s ease-out` }}
+        >
           <Chip
             size="small"
             color="primary"
@@ -241,9 +262,18 @@ export function NearbyPage() {
 
         <Stack spacing={2} sx={{ mt: 2 }}>
           {others.map((o) => {
-            const isNearby = o.latency && o.latency < PROXIMITY_LATENCY_MS;
+            const isNearby =
+              o.latency !== undefined &&
+              o.latency < PROXIMITY_LATENCY_MS;
+
             return (
-              <Card key={o.deviceId} sx={{ bgcolor: isNearby ? "#e8f5e9" : "white" }}>
+              <Card
+                key={o.deviceId}
+                sx={{
+                  bgcolor: isNearby ? "#e8f5e9" : "white",
+                  animation: `${fadeUp} 0.45s ease-out`,
+                }}
+              >
                 <CardContent>
                   <Typography variant="subtitle1">
                     Someone nearby
@@ -251,12 +281,18 @@ export function NearbyPage() {
                   </Typography>
                   <Typography variant="body2" color="text.secondary">
                     {o.latency !== undefined
-                      ? `Latency: ${o.latency}ms ${isNearby ? "(< 3 feet!)" : ""}`
+                      ? `Latency: ${o.latency}ms ${
+                          isNearby ? "(< 3 feet!)" : ""
+                        }`
                       : "Measuring distance..."}
                   </Typography>
                   {isNearby && (
-                    <Typography variant="caption" color="success.main" sx={{ mt: 1, display: "block" }}>
-                      ✅ In proximity range - Profile auto-opens when + is on
+                    <Typography
+                      variant="caption"
+                      color="success.main"
+                      sx={{ mt: 1, display: "block" }}
+                    >
+                      ✅ In proximity range – profile auto-opens when + is on
                     </Typography>
                   )}
                 </CardContent>
@@ -272,10 +308,12 @@ export function NearbyPage() {
                         setMeasuring(false);
                         setOthers((prev) =>
                           prev.map((entry) =>
-                            entry.deviceId === o.deviceId ? { ...entry, latency } : entry
+                            entry.deviceId === o.deviceId
+                              ? { ...entry, latency }
+                              : entry
                           )
                         );
-                        openProfileIfClose(o, {
+                        void openProfileIfClose(o, {
                           latencyOverride: latency,
                           ignoreAutoOpenGate: true,
                           allowRepeat: true,
@@ -284,7 +322,11 @@ export function NearbyPage() {
                     }}
                     disabled={measuring}
                   >
-                    {measuring ? "Checking..." : isNearby ? "View Profile" : "Check Distance"}
+                    {measuring
+                      ? "Checking..."
+                      : isNearby
+                      ? "View Profile"
+                      : "Check Distance"}
                   </Button>
                   <Button
                     size="small"
@@ -303,18 +345,24 @@ export function NearbyPage() {
           })}
         </Stack>
       </Container>
+
       <Tooltip
         title={
           autoOpenEnabled
             ? `Auto pop-up on (<${PROXIMITY_RADIUS_FEET}ft)`
-            : "Add latency filter: auto pop-up when <3ft"
+            : "Enable auto pop-up when <3ft"
         }
       >
         <Fab
           color={autoOpenEnabled ? "success" : "default"}
           aria-label="toggle-latency-filter"
           onClick={() => setAutoOpenEnabled((v) => !v)}
-          sx={{ position: "fixed", bottom: 24, right: 24 }}
+          sx={{
+            position: "fixed",
+            bottom: 24,
+            right: 24,
+            animation: `${float} 3s ease-in-out infinite`,
+          }}
         >
           <AddIcon />
         </Fab>

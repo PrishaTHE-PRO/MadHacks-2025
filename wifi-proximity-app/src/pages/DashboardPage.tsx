@@ -1,3 +1,4 @@
+// src/pages/DashboardPage.tsx
 import { Link, useNavigate } from "react-router-dom";
 import {
   Box,
@@ -28,6 +29,7 @@ import AddIcon from "@mui/icons-material/Add";
 import CalendarMonthIcon from "@mui/icons-material/CalendarMonth";
 import AccessTimeIcon from "@mui/icons-material/AccessTime";
 import PlaceIcon from "@mui/icons-material/Place";
+import { fadeUp, popIn, float } from "../styles/animations";
 
 type EventItem = {
   code: string;
@@ -47,7 +49,7 @@ export function DashboardPage() {
 
   const username =
     user?.displayName ||
-    (user?.email ? user.email.split("@")[0] : "back");
+    (user?.email ? user.email.split("@")[0] : "guest");
 
   const [events, setEvents] = useState<EventItem[]>([
     {
@@ -72,7 +74,6 @@ export function DashboardPage() {
 
   const [open, setOpen] = useState(false);
   const [eventCode, setEventCode] = useState("");
-  const [eventError, setEventError] = useState("");
 
   // Load joined events from localStorage on mount
   useEffect(() => {
@@ -92,24 +93,35 @@ export function DashboardPage() {
   }, [user]);
 
   const handleJoinEvent = () => {
-    if (!eventCode.trim() || !user) {
-      setEventError("Enter an event code to continue");
-      return;
-    }
+    if (!eventCode.trim() || !user) return;
 
     const code = eventCode.trim().toUpperCase();
     const storageKey = `joinedEvents_${user.uid}`;
 
-    const matchedEvent = events.find((e) => e.code === code);
-    if (!matchedEvent) {
-      setEventError("Event code not found. Please check and try again.");
-      return;
-    }
-
     setEvents((prevEvents) => {
-      const nextEvents = prevEvents.map((e) =>
-        e.code === code ? { ...e, joined: true } : e
-      );
+      const existingEvent = prevEvents.find((e) => e.code === code);
+      let nextEvents: EventItem[];
+
+      if (existingEvent) {
+        // mark existing event as joined
+        nextEvents = prevEvents.map((e) =>
+          e.code === code ? { ...e, joined: true } : e
+        );
+      } else {
+        // new event with placeholder meta + default image
+        nextEvents = [
+          ...prevEvents,
+          {
+            code,
+            name: `Event ${eventCode}`,
+            date: "TBD",
+            time: "TBD",
+            location: "TBD",
+            joined: true,
+            image: unionSouthImg,
+          },
+        ];
+      }
 
       // update joined codes in localStorage
       const savedJoinedEvents = localStorage.getItem(storageKey);
@@ -125,9 +137,9 @@ export function DashboardPage() {
       return nextEvents;
     });
 
-    // reset + close dialog (stay on dashboard; use event card button to open Nearby)
+    // navigate & reset
+    navigate(`/nearby/${code}`);
     setEventCode("");
-    setEventError("");
     setOpen(false);
   };
 
@@ -143,11 +155,12 @@ export function DashboardPage() {
     >
       <Container maxWidth="lg" sx={{ pt: 10, pb: 6 }}>
         <Stack spacing={4}>
-          {/* header */}
+          {/* Header */}
           <Stack
             direction="row"
             alignItems="center"
             justifyContent="space-between"
+            sx={{ animation: `${fadeUp} 0.6s ease-out` }}
           >
             <Box>
               <Typography variant="h4" fontWeight={600}>
@@ -166,21 +179,32 @@ export function DashboardPage() {
             </IconButton>
           </Stack>
 
-          {/* quick actions */}
-          <Stack spacing={1}>
+          {/* Quick actions */}
+          <Stack
+            spacing={1}
+            sx={{ animation: `${fadeUp} 0.7s ease-out` }}
+          >
             <Typography variant="body1">
               Welcome <b>{username}</b>!
             </Typography>
             <Stack direction={{ xs: "column", sm: "row" }} spacing={2}>
-              <Button variant="contained" component={Link} to="/profile/me">
+              <Button
+                variant="contained"
+                component={Link}
+                to="/profile/me"
+              >
                 My Profile
               </Button>
             </Stack>
           </Stack>
 
-          {/* events section */}
+          {/* Events section */}
           <Stack spacing={2}>
-            <Typography variant="h6" fontWeight={600}>
+            <Typography
+              variant="h6"
+              fontWeight={600}
+              sx={{ animation: `${fadeUp} 0.8s ease-out` }}
+            >
               Your Events
             </Typography>
             <Box
@@ -190,7 +214,7 @@ export function DashboardPage() {
                 gap: 3,
               }}
             >
-              {events.map((event) => (
+              {events.map((event, index) => (
                 <Box
                   key={event.code}
                   sx={{ flex: "1 1 300px", maxWidth: 400 }}
@@ -205,14 +229,17 @@ export function DashboardPage() {
                       backgroundSize: "cover",
                       backgroundPosition: "center",
                       color: "common.white",
+                      animation: `${popIn} 0.4s ease-out`,
+                      animationDelay: `${index * 0.05}s`,
+                      animationFillMode: "backwards",
                     }}
                   >
-                    {/* overlay */}
+                    {/* dark overlay */}
                     <Box
                       sx={{
                         position: "absolute",
                         inset: 0,
-                        bgcolor: "rgba(0, 0, 0, 0.65)",
+                        bgcolor: "rgba(0,0,0,0.6)",
                       }}
                     />
 
@@ -222,21 +249,33 @@ export function DashboardPage() {
                       </Typography>
 
                       <Stack spacing={0.5}>
-                        <Stack direction="row" spacing={1} alignItems="center">
+                        <Stack
+                          direction="row"
+                          spacing={1}
+                          alignItems="center"
+                        >
                           <CalendarMonthIcon fontSize="small" />
                           <Typography variant="body2">
                             {event.date}
                           </Typography>
                         </Stack>
 
-                        <Stack direction="row" spacing={1} alignItems="center">
+                        <Stack
+                          direction="row"
+                          spacing={1}
+                          alignItems="center"
+                        >
                           <AccessTimeIcon fontSize="small" />
                           <Typography variant="body2">
                             {event.time}
                           </Typography>
                         </Stack>
 
-                        <Stack direction="row" spacing={1} alignItems="center">
+                        <Stack
+                          direction="row"
+                          spacing={1}
+                          alignItems="center"
+                        >
                           <PlaceIcon fontSize="small" />
                           <Typography variant="body2">
                             {event.location}
@@ -280,27 +319,27 @@ export function DashboardPage() {
         </Stack>
       </Container>
 
-      {/* floating Join Event button */}
+      {/* Floating Join Event button */}
       <Fab
         color="primary"
         aria-label="add"
-        sx={{ position: "fixed", bottom: 24, right: 24 }}
-        onClick={() => {
-          setEventError("");
-          setEventCode("");
-          setOpen(true);
+        sx={{
+          position: "fixed",
+          bottom: 24,
+          right: 24,
+          animation: `${float} 3s ease-in-out infinite`,
         }}
+        onClick={() => setOpen(true)}
       >
         <AddIcon />
       </Fab>
 
-      {/* join event dialog */}
+      {/* Join event dialog */}
       <Dialog
         open={open}
         onClose={() => {
           setOpen(false);
           setEventCode("");
-          setEventError("");
         }}
       >
         <DialogTitle>Join Event</DialogTitle>
@@ -312,17 +351,14 @@ export function DashboardPage() {
             fullWidth
             variant="outlined"
             value={eventCode}
-            onChange={(e) => {
-              setEventCode(e.target.value.toUpperCase());
-              if (eventError) setEventError("");
-            }}
+            onChange={(e) =>
+              setEventCode(e.target.value.toUpperCase())
+            }
             onKeyDown={(e) => {
               if (e.key === "Enter") {
                 handleJoinEvent();
               }
             }}
-            error={Boolean(eventError)}
-            helperText={eventError || " "}
           />
         </DialogContent>
         <DialogActions>
@@ -330,7 +366,6 @@ export function DashboardPage() {
             onClick={() => {
               setOpen(false);
               setEventCode("");
-              setEventError("");
             }}
           >
             Cancel
