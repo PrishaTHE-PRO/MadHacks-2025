@@ -51,6 +51,10 @@ export type FirestoreEvent = {
     location: string;
     createdByUid: string;
     imageUrl?: string;
+    // optional geo/time fields used by map UI
+    lat?: number;
+    lng?: number;
+    startTimestamp?: number; // ms since epoch
 };
 
 const EVENTS_COLLECTION = "events";
@@ -196,4 +200,21 @@ export async function deleteEventForUser(eventCode: string, uid: string) {
         deleteDoc(membershipRef),
         deleteDoc(eventRef),
     ]);
+}
+
+/**
+ * Return all events. The map page will filter client-side by radius.
+ */
+export async function getEventsNearby(): Promise<FirestoreEvent[]> {
+    const snaps = await getDocs(collection(db, EVENTS_COLLECTION));
+    return snaps.docs.map((d) => d.data() as FirestoreEvent);
+}
+
+/**
+ * Return membership documents for an event code
+ */
+export async function getMembersForEvent(eventCode: string): Promise<{ userId: string; role: Role }[]> {
+    const q = query(collection(db, MEMBERS_COLLECTION), where("eventCode", "==", eventCode));
+    const snaps = await getDocs(q);
+    return snaps.docs.map((d) => d.data() as { userId: string; role: Role });
 }

@@ -418,6 +418,9 @@ export function DashboardPage() {
               >
                 My Profile
               </Button>
+              <Button color="secondary" variant="contained" component={Link} to="/map">
+                Search for nearby events
+              </Button>
               <Button
                 variant="outlined"
                 onClick={() => {
