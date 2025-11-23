@@ -1,5 +1,7 @@
 import { AppBar, Toolbar, IconButton, Typography, Box } from "@mui/material";
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
+import LogoutIcon from "@mui/icons-material/Logout";
+import { logout } from "../services/authService";
 import { useNavigate, useLocation } from "react-router-dom";
 
 export function Navbar() {
@@ -22,20 +24,37 @@ export function Navbar() {
       <Toolbar>
         {/* Back arrow: prefer an explicit target for list-like pages so back doesn't return
             to an edit form. Fall back to history.back when no explicit target exists. */}
-        <IconButton
-          edge="start"
-          onClick={() => {
-            const path = location.pathname;
-            // If we're on a profile-related page, go to dashboard instead of history.back
-            if (path.startsWith("/profile") || path.startsWith("/events") || path.startsWith("/nearby")) {
-              navigate("/dashboard");
-              return;
-            }
-            navigate(-1);
-          }}
-        >
-          <ArrowBackIcon />
-        </IconButton>
+        {location.pathname === "/dashboard" ? (
+          // On dashboard show logout button which returns to the landing/login screen
+          <IconButton
+            edge="start"
+            onClick={async () => {
+              try {
+                await logout();
+              } catch (err) {
+                console.error("Logout failed:", err);
+              }
+              navigate("/");
+            }}
+          >
+            <LogoutIcon />
+          </IconButton>
+        ) : (
+          <IconButton
+            edge="start"
+            onClick={() => {
+              const path = location.pathname;
+              // If we're on a profile-related page, go to dashboard instead of history.back
+              if (path.startsWith("/profile") || path.startsWith("/events") || path.startsWith("/nearby")) {
+                navigate("/dashboard");
+                return;
+              }
+              navigate(-1);
+            }}
+          >
+            <ArrowBackIcon />
+          </IconButton>
+        )}
 
         <Box sx={{ flexGrow: 1 }} />
 
