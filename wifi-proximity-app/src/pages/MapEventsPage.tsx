@@ -293,57 +293,57 @@ export function MapEventsPage() {
   }
 
   return (
-    <Box sx={{ minHeight: "100vh", pt: 8, bgcolor: "background.default" }}>
+    <Box sx={{ minHeight: "100vh", pt: 10, pb: 4, bgcolor: "background.default" }}>
       <BackButton />
       <Container maxWidth="lg">
-        <Stack direction="row" spacing={2} alignItems="center" sx={{ mb: 2 }}>
-          <Typography variant="h5">Search nearby events</Typography>
-          <Chip label={`${Math.round(radiusMeters)}m radius`} />
+        <Stack direction="row" spacing={3} alignItems="center" sx={{ mb: 3 }}>
+          <Typography variant="h3" sx={{ fontWeight: 700 }}>Search nearby events</Typography>
+          <Chip label={`${Math.round(radiusMeters)}m radius`} size="medium" sx={{ fontSize: "1rem", px: 1, py: 2.5 }} />
         </Stack>
 
-        <Paper sx={{ height: 520, position: "relative", overflow: "hidden" }}>
+        <Paper sx={{ height: 600, position: "relative", overflow: "hidden", borderRadius: 3 }}>
           {/* Legend overlay */}
           <Box
             sx={{
               position: "absolute",
-              top: 12,
-              right: 12,
+              top: 16,
+              right: 16,
               zIndex: 2,
               bgcolor: "background.paper",
-              boxShadow: 3,
-              borderRadius: 1,
-              p: 1,
-              minWidth: 160,
+              boxShadow: 4,
+              borderRadius: 2,
+              p: 2,
+              minWidth: 220,
               pointerEvents: "auto",
             }}
           >
-            <Typography variant="caption" sx={{ fontWeight: 700, display: "block", mb: 0.5 }}>
+            <Typography variant="body1" sx={{ fontWeight: 700, display: "block", mb: 1.5 }}>
               Legend
             </Typography>
-            <Stack spacing={0.5}>
-              <Stack direction="row" spacing={1} alignItems="center">
-                <Box sx={{ width: 12, height: 12, bgcolor: "#9e9e9e", borderRadius: 0.5 }} />
-                <Typography variant="caption">Started</Typography>
+            <Stack spacing={1}>
+              <Stack direction="row" spacing={1.5} alignItems="center">
+                <Box sx={{ width: 18, height: 18, bgcolor: "#9e9e9e", borderRadius: 1 }} />
+                <Typography variant="body2">Started</Typography>
               </Stack>
 
-              <Stack direction="row" spacing={1} alignItems="center">
-                <Box sx={{ width: 12, height: 12, bgcolor: "#2e7d32", borderRadius: 0.5 }} />
-                <Typography variant="caption">Starts within 1 hour</Typography>
+              <Stack direction="row" spacing={1.5} alignItems="center">
+                <Box sx={{ width: 18, height: 18, bgcolor: "#2e7d32", borderRadius: 1 }} />
+                <Typography variant="body2">Starts within 1 hour</Typography>
               </Stack>
 
-              <Stack direction="row" spacing={1} alignItems="center">
-                <Box sx={{ width: 12, height: 12, bgcolor: "#f57f17", borderRadius: 0.5 }} />
-                <Typography variant="caption">Starts within 6 hours</Typography>
+              <Stack direction="row" spacing={1.5} alignItems="center">
+                <Box sx={{ width: 18, height: 18, bgcolor: "#f57f17", borderRadius: 1 }} />
+                <Typography variant="body2">Starts within 6 hours</Typography>
               </Stack>
 
-              <Stack direction="row" spacing={1} alignItems="center">
-                <Box sx={{ width: 12, height: 12, bgcolor: "#c62828", borderRadius: 0.5 }} />
-                <Typography variant="caption">Starts in &gt; 6 hours</Typography>
+              <Stack direction="row" spacing={1.5} alignItems="center">
+                <Box sx={{ width: 18, height: 18, bgcolor: "#c62828", borderRadius: 1 }} />
+                <Typography variant="body2">Starts in &gt; 6 hours</Typography>
               </Stack>
 
-              <Stack direction="row" spacing={1} alignItems="center">
-                <Box sx={{ width: 12, height: 12, bgcolor: "#1976d2", borderRadius: 0.5 }} />
-                <Typography variant="caption">No start time listed</Typography>
+              <Stack direction="row" spacing={1.5} alignItems="center">
+                <Box sx={{ width: 18, height: 18, bgcolor: "#1976d2", borderRadius: 1 }} />
+                <Typography variant="body2">No start time listed</Typography>
               </Stack>
             </Stack>
           </Box>
@@ -351,22 +351,30 @@ export function MapEventsPage() {
           <div ref={mapContainer} style={{ height: "100%" }} />
         </Paper>
 
-        <Stack direction={{ xs: "column", sm: "row" }} spacing={2} sx={{ mt: 2 }} alignItems="center">
-          <Typography variant="body2">Radius (meters)</Typography>
-          <Slider value={radiusMeters} min={200} max={20000} step={100} onChange={(_, v) => setRadiusMeters(v as number)} sx={{ width: 300 }} />
+        <Stack direction={{ xs: "column", sm: "row" }} spacing={3} sx={{ mt: 3 }} alignItems="center">
+          <Typography variant="h6" sx={{ minWidth: 180 }}>Radius (meters)</Typography>
+          <Slider
+            value={radiusMeters}
+            min={200}
+            max={20000}
+            step={100}
+            onChange={(_, v) => setRadiusMeters(v as number)}
+            sx={{ width: 400 }}
+            size="medium"
+          />
         </Stack>
 
-        <Typography variant="h6" sx={{ mt: 2 }}>Events found</Typography>
-        <Stack spacing={1} sx={{ mt: 1 }}>
+        <Typography variant="h4" sx={{ mt: 4, mb: 2, fontWeight: 700 }}>Events found</Typography>
+        <Stack spacing={2} sx={{ mt: 2 }}>
           {nearbyEvents.map((ev) => (
-            <Paper key={ev.code} sx={{ p: 1, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-              <Stack>
-                <Typography variant="subtitle1">{ev.name}</Typography>
-                <Typography variant="caption" color="text.secondary">{ev.date} {ev.time} — {ev.location}</Typography>
+            <Paper key={ev.code} sx={{ p: 3, display: "flex", justifyContent: "space-between", alignItems: "center", borderRadius: 2 }}>
+              <Stack spacing={0.5}>
+                <Typography variant="h6" sx={{ fontWeight: 600 }}>{ev.name}</Typography>
+                <Typography variant="body1" color="text.secondary">{ev.date} {ev.time} — {ev.location}</Typography>
               </Stack>
-              <Stack direction="row" spacing={1} alignItems="center">
-                <Button size="small" variant="contained" onClick={() => handleAttend(ev)}>Attend</Button>
-                <Button size="small" onClick={async () => { const members = await getMembersForEvent(ev.code); window.alert(`${members.filter(m=>m.role==='recruiter').length} recruiters attending.`); }}>See recruiters</Button>
+              <Stack direction="row" spacing={2} alignItems="center">
+                <Button size="large" variant="contained" onClick={() => handleAttend(ev)} sx={{ minWidth: 120 }}>Attend</Button>
+                <Button size="large" onClick={async () => { const members = await getMembersForEvent(ev.code); window.alert(`${members.filter(m=>m.role==='recruiter').length} recruiters attending.`); }} sx={{ minWidth: 160 }}>See recruiters</Button>
               </Stack>
             </Paper>
           ))}

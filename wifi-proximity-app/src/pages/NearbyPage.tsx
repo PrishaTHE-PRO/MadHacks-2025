@@ -247,7 +247,8 @@ export function NearbyPage() {
     <Box
       sx={{
         minHeight: "100vh",
-        pt: 8,
+        pt: 10,
+        pb: 4,
         display: "flex",
         alignItems: "center",
         bgcolor: "background.default",
@@ -256,15 +257,15 @@ export function NearbyPage() {
       <BackButton onClick={() => navigate(`/events/${eventCode}`)} />
 
       <Container
-        maxWidth="sm"
+        maxWidth="md"
         sx={{
           animation: `${fadeUp} 0.6s ease-out`,
         }}
       >
-        <Typography variant="h5" gutterBottom>
+        <Typography variant="h3" gutterBottom sx={{ fontWeight: 700 }}>
           Nearby people at {eventCode}
         </Typography>
-        <Typography variant="body2" color="text.secondary" gutterBottom>
+        <Typography variant="h6" color="text.secondary" gutterBottom sx={{ fontWeight: 400 }}>
           Anyone on the same WiFi with this page open and event code selected
           will appear here.
         </Typography>
@@ -272,30 +273,31 @@ export function NearbyPage() {
         <Stack
           direction="row"
           alignItems="center"
-          spacing={1}
-          sx={{ mt: 1, animation: `${slideLeft} 0.5s ease-out` }}
+          spacing={2}
+          sx={{ mt: 3, animation: `${slideLeft} 0.5s ease-out` }}
         >
           <Chip
-            size="small"
+            size="medium"
             color="primary"
             label={`Latency < ${PROXIMITY_LATENCY_MS}ms (~${PROXIMITY_RADIUS_FEET}ft)`}
+            sx={{ fontSize: "1rem", px: 1.5, py: 2.5 }}
           />
-          <Typography variant="caption" color="text.secondary">
+          <Typography variant="body1" color="text.secondary">
             Auto pop-up {autoOpenEnabled ? "ON" : "OFF"} (via +)
           </Typography>
         </Stack>
 
         {others.length === 0 && (
           <Typography
-            variant="body2"
+            variant="h6"
             color="text.secondary"
-            sx={{ mt: 2 }}
+            sx={{ mt: 4, fontWeight: 400 }}
           >
             Waiting for other devices…
           </Typography>
         )}
 
-        <Stack spacing={2} sx={{ mt: 2 }}>
+        <Stack spacing={3} sx={{ mt: 4 }}>
           {others.map((o) => {
             const isNearby =
               o.latency !== undefined &&
@@ -307,14 +309,15 @@ export function NearbyPage() {
                 sx={{
                   bgcolor: isNearby ? "#e8f5e9" : "white",
                   animation: `${fadeUp} 0.45s ease-out`,
+                  borderRadius: 3,
                 }}
               >
-                <CardContent>
-                  <Typography variant="subtitle1">
+                <CardContent sx={{ p: 3 }}>
+                  <Typography variant="h5" sx={{ fontWeight: 600, mb: 1.5 }}>
                     Someone nearby {isNearby && "🎯"}
                   </Typography>
 
-                  <Typography variant="body2" color="text.secondary">
+                  <Typography variant="h6" color="text.secondary" sx={{ fontWeight: 400 }}>
                     {o.latency !== undefined
                       ? `Latency: ${o.latency}ms ${isNearby ? "(< 3 feet!)" : ""
                       }`
@@ -323,21 +326,22 @@ export function NearbyPage() {
 
                   {isNearby && (
                     <Typography
-                      variant="caption"
+                      variant="body1"
                       color="success.main"
-                      sx={{ mt: 1, display: "block" }}
+                      sx={{ mt: 2, display: "block", fontWeight: 500 }}
                     >
                       ✅ In proximity — will auto-open when + is ON
                     </Typography>
                   )}
                 </CardContent>
 
-                <CardActions>
+                <CardActions sx={{ p: 3, pt: 0 }}>
                   <Button
-                    size="small"
+                    size="large"
                     variant={isNearby ? "contained" : "outlined"}
                     color={isNearby ? "success" : "primary"}
                     disabled={measuring}
+                    sx={{ minWidth: 160, fontSize: "1rem" }}
                     onClick={() => {
                       if (measuring) return;
                       setMeasuring(true);
@@ -369,7 +373,8 @@ export function NearbyPage() {
                   </Button>
 
                   <Button
-                    size="small"
+                    size="large"
+                    sx={{ minWidth: 100, fontSize: "1rem" }}
                     onClick={() => {
                       if (!myProfileSlug) {
                         alert(
@@ -405,12 +410,14 @@ export function NearbyPage() {
           onClick={() => setAutoOpenEnabled((v) => !v)}
           sx={{
             position: "fixed",
-            bottom: 24,
-            right: 24,
+            bottom: 32,
+            right: 32,
+            width: 72,
+            height: 72,
             animation: `${float} 3s ease-in-out infinite`,
           }}
         >
-          <AddIcon />
+          <AddIcon sx={{ fontSize: 36 }} />
         </Fab>
       </Tooltip>
     </Box>

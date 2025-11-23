@@ -1,6 +1,6 @@
 // src/pages/EventContactsPage.tsx
 import { useEffect, useState, useContext } from "react";
-import { useParams, Link } from "react-router-dom";
+import { useParams, Link, useNavigate } from "react-router-dom";
 import { getInteractionsForEvent } from "../services/eventService";
 import { getProfileByIdOrSlug } from "../services/profileService";
 import { AuthContext } from "../context/AuthContext";
@@ -38,6 +38,7 @@ interface Contact {
 export function EventContactsPage() {
   const { eventCode } = useParams<{ eventCode: string }>();
   const { user } = useContext(AuthContext);
+  const navigate = useNavigate();
   const [contacts, setContacts] = useState<Contact[]>([]);
 
   useEffect(() => {
@@ -82,8 +83,8 @@ export function EventContactsPage() {
         py: 4,
       }}
     >
-      {/* Back arrow (default: navigate(-1)) */}
-      <BackButton />
+      {/* Back arrow */}
+      <BackButton onClick={() => navigate("/dashboard")} />
 
       <Container maxWidth="md">
         {/* spacer for any fixed app bar */}
