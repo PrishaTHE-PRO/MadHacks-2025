@@ -26,9 +26,6 @@ import {
 import { useContext, useState, useEffect } from "react";
 import { AuthContext } from "../context/AuthContext";
 
-import graingerHallImg from "../assets/graingerhall.jpeg";
-import unionSouthImg from "../assets/unionsouth.jpeg";
-
 import { storage } from "../firebase";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { useTheme } from "@mui/material/styles";
@@ -65,11 +62,10 @@ type EventItem = {
   role?: Role;
 };
 
-const pickImageForLocation = (location: string) => {
-  const loc = location.toLowerCase();
-  if (loc.includes("union south")) return unionSouthImg;
-  if (loc.includes("grainger")) return graingerHallImg;
-  return unionSouthImg;
+const pickImageForEvent = (eventCode: string) => {
+  // Return a picsum.photos URL with the event code as seed for consistency
+  // This ensures each event gets a unique but consistent image
+  return `https://picsum.photos/seed/${eventCode}/800/400`;
 };
 
 export function DashboardPage() {
@@ -128,7 +124,7 @@ export function DashboardPage() {
           time: event.time,
           location: event.location,
           joined: true,
-          image: event.imageUrl || pickImageForLocation(event.location),
+          image: event.imageUrl || pickImageForEvent(event.code),
           createdByUid: event.createdByUid,
           role,
         }));
@@ -149,7 +145,7 @@ export function DashboardPage() {
         joinRole
       );
 
-      const image = pickImageForLocation(eventData.location);
+      const image = eventData.imageUrl || pickImageForEvent(eventData.code);
 
       setEvents((prev) => {
         const existing = prev.find((e) => e.code === code);
@@ -226,7 +222,7 @@ export function DashboardPage() {
         time,
         location,
         joined: true,
-        image: imageUrl || pickImageForLocation(location),
+        image: imageUrl || pickImageForEvent(code),
         createdByUid: user.uid,
         role: createRole,
       };
