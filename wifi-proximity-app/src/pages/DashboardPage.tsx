@@ -231,6 +231,13 @@ export function DashboardPage() {
       setGeneratedCode(code);
       setCreateError("");
       setNewEventImageFile(null);
+
+      // Close dialog and reset form after successful creation
+      setCreateOpen(false);
+      setNewEventName("");
+      setNewEventDate("");
+      setNewEventTime("");
+      setNewEventLocation("");
     } catch (err: any) {
       console.error(err);
       setCreateError(err.message || "Failed to create event.");
