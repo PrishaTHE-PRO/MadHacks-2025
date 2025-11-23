@@ -11,7 +11,6 @@ import { ProfileMePage } from "./pages/ProfileMePage";
 import { PublicProfilePage } from "./pages/PublicProfilePage";
 import { ProfileViewPage } from "./pages/ProfileViewPage";
 import { NearbyPage } from "./pages/NearbyPage";
-//import { EventsPage } from "./pages/EventsPage";
 import { EventContactsPage } from "./pages/EventContactsPage";
 import { Navbar } from "./components/Navbar";
 
@@ -99,14 +98,6 @@ export default function App() {
             </RequireAuth>
           }
         />
-        {/* <Route
-          path="/events"
-          element={
-            <RequireAuth>
-              <EventsPage />
-            </RequireAuth>
-          }
-        /> */}
         <Route
           path="/events/:eventCode"
           element={
