@@ -1,3 +1,4 @@
+// src/pages/ProfileEditPage.tsx
 import { useState, useEffect, useContext, useRef } from "react";
 import {
   Box,
@@ -14,7 +15,6 @@ import { useNavigate } from "react-router-dom";
 import { AuthContext } from "../context/AuthContext";
 import { saveProfile, getProfileByUid } from "../services/profileService";
 import PhotoCameraIcon from "@mui/icons-material/PhotoCamera";
-import UploadFileIcon from "@mui/icons-material/UploadFile";
 import MovieIcon from "@mui/icons-material/Movie";
 import ImageIcon from "@mui/icons-material/Image";
 import defaultAvatar from "../assets/defaultAvatar.png";
@@ -83,7 +83,7 @@ export function ProfileEditPage() {
     if (!file) return;
     const url = URL.createObjectURL(file);
     pushObjectUrl(url);
-    setPhotoURL(url); // later you can upload to Firebase Storage & store real URL
+    setPhotoURL(url); // TODO: upload to storage later
   };
 
   const handleResumeFile = (file: File | null) => {
@@ -176,7 +176,8 @@ export function ProfileEditPage() {
     }
   };
 
-  const rawResumeUrl = profile?.resumeUrl || "";
+  // For previewing Drive links nicely
+  const rawResumeUrl = resumeUrl || "";
   const resumeEmbedUrl = rawResumeUrl.includes("drive.google.com/file/d/")
     ? rawResumeUrl.replace(/\/view.*$/, "/preview")
     : rawResumeUrl;
@@ -225,7 +226,9 @@ export function ProfileEditPage() {
                   type="file"
                   accept="image/*"
                   hidden
-                  onChange={(e) => handlePhotoFile(e.target.files?.[0] || null)}
+                  onChange={(e) =>
+                    handlePhotoFile(e.target.files?.[0] || null)
+                  }
                 />
               </Button>
               <TextField
@@ -293,35 +296,51 @@ export function ProfileEditPage() {
 
               <Divider flexItem />
 
-              {/* Resume */}
-              {profile.resumeUrl && (
-                <>
-                  <Divider sx={{ my: 3 }} />
-                  <Typography variant="h6" gutterBottom>
-                    Resume
-                  </Typography>
-                  <Box
-                    sx={{
-                      borderRadius: 2,
-                      border: "1px solid",
-                      borderColor: "divider",
-                      p: 1,
-                      bgcolor: "background.default",
-                      height: 300,
-                      overflow: "hidden",
+              {/* Resume upload + preview */}
+              <Typography variant="subtitle1">Resume (PDF)</Typography>
+              <Stack direction={{ xs: "column", sm: "row" }} spacing={2}>
+                <Button variant="outlined" component="label">
+                  Upload PDF
+                  <input
+                    type="file"
+                    accept="application/pdf"
+                    hidden
+                    onChange={(e) =>
+                      handleResumeFile(e.target.files?.[0] || null)
+                    }
+                  />
+                </Button>
+                <TextField
+                  label="Resume URL (Drive or direct)"
+                  fullWidth
+                  value={resumeUrl}
+                  onChange={(e) => setResumeUrl(e.target.value)}
+                />
+              </Stack>
+
+              {resumeUrl && (
+                <Box
+                  sx={{
+                    mt: 1,
+                    borderRadius: 2,
+                    border: "1px solid",
+                    borderColor: "divider",
+                    p: 1,
+                    bgcolor: "background.default",
+                    height: 260,
+                    overflow: "hidden",
+                  }}
+                >
+                  <iframe
+                    src={resumeEmbedUrl}
+                    title="Resume preview"
+                    style={{
+                      border: "none",
+                      width: "100%",
+                      height: "100%",
                     }}
-                  >
-                    <iframe
-                      src={resumeEmbedUrl}
-                      title="Resume"
-                      style={{
-                        border: "none",
-                        width: "100%",
-                        height: "100%",
-                      }}
-                    />
-                  </Box>
-                </>
+                  />
+                </Box>
               )}
 
               {/* Gallery */}

@@ -1,4 +1,4 @@
-// src/pages/ProfileViewPage.tsx
+// src/pages/PublicProfilePage.tsx
 import { useEffect, useState, useContext } from "react";
 import { useParams, useNavigate, useSearchParams } from "react-router-dom";
 import { getProfileBySlug } from "../services/profileService";
@@ -20,6 +20,10 @@ import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 import EmailIcon from "@mui/icons-material/Email";
 import PhoneIcon from "@mui/icons-material/Phone";
 import LinkedInIcon from "@mui/icons-material/LinkedIn";
+import LanguageIcon from "@mui/icons-material/Language";
+import PictureAsPdfIcon from "@mui/icons-material/PictureAsPdf";
+import PhotoLibraryIcon from "@mui/icons-material/PhotoLibrary";
+import MovieIcon from "@mui/icons-material/Movie";
 import { motion } from "framer-motion";
 
 interface Profile {
@@ -39,6 +43,14 @@ interface Profile {
 }
 
 const MotionIconButton = motion(IconButton);
+
+const cardHover = {
+  transition: "transform 0.25s ease, boxShadow 0.25s ease",
+  "&:hover": {
+    transform: "translateY(-4px)",
+    boxShadow: 8,
+  },
+};
 
 export function PublicProfilePage() {
   const { slug } = useParams<{ slug: string }>();
@@ -68,7 +80,7 @@ export function PublicProfilePage() {
       await saveInteraction({
         ownerUserId: user.uid,
         otherUserId: profile.userId,
-        eventCode: eventCode,
+        eventCode,
         note: "Met via proximity detection",
       });
       setSaved(true);
@@ -106,14 +118,14 @@ export function PublicProfilePage() {
     ? rawResumeUrl.replace(/\/view.*$/, "/preview")
     : rawResumeUrl;
 
+  const gallery = (profile.galleryUrls || []).filter(Boolean);
+
   function getYouTubeEmbedUrl(url: string): string | null {
     try {
       const u = new URL(url);
-      // https://www.youtube.com/watch?v=VIDEO_ID
       if (u.hostname.includes("youtube.com") && u.searchParams.get("v")) {
         return `https://www.youtube.com/embed/${u.searchParams.get("v")}`;
       }
-      // https://youtu.be/VIDEO_ID
       if (u.hostname === "youtu.be") {
         return `https://www.youtube.com/embed${u.pathname}`;
       }
@@ -129,7 +141,7 @@ export function PublicProfilePage() {
 
   return (
     <Box sx={{ minHeight: "100vh", bgcolor: "#f5f5f5", pt: 8 }}>
-      {/* Back Button with swipe-left animation on click */}
+      {/* Back Button with motion */}
       <Box sx={{ position: "fixed", top: 70, left: 16, zIndex: 1000 }}>
         <MotionIconButton
           onClick={handleBack}
@@ -176,7 +188,7 @@ export function PublicProfilePage() {
 
           <Divider sx={{ my: 3 }} />
 
-          {/* Contact Information */}
+          {/* Contact info */}
           <Stack spacing={2}>
             {profile.email && (
               <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
@@ -200,10 +212,7 @@ export function PublicProfilePage() {
                   href={profile.linkedin}
                   target="_blank"
                   rel="noreferrer"
-                  sx={{
-                    textDecoration: "none",
-                    color: "primary.main",
-                  }}
+                  sx={{ textDecoration: "none", color: "primary.main" }}
                 >
                   LinkedIn Profile
                 </Typography>
@@ -212,7 +221,7 @@ export function PublicProfilePage() {
 
             {profile.website && (
               <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-                <Typography fontWeight={600}>Website:</Typography>
+                <LanguageIcon color="action" />
                 <Typography
                   component="a"
                   href={profile.website}
@@ -234,9 +243,9 @@ export function PublicProfilePage() {
                 Interests
               </Typography>
               <Box sx={{ display: "flex", flexWrap: "wrap", gap: 1 }}>
-                {profile.interests.map((interest, index) => (
+                {profile.interests.map((interest, i) => (
                   <Chip
-                    key={index}
+                    key={i}
                     label={interest}
                     color="primary"
                     variant="outlined"
@@ -247,33 +256,26 @@ export function PublicProfilePage() {
           )}
 
           {/* Resume */}
-          {profile?.resumeUrl && (
+          {profile.resumeUrl && (
             <>
               <Divider sx={{ my: 3 }} />
-              <Typography variant="h6" gutterBottom>
-                Resume
-              </Typography>
+              <Stack direction="row" spacing={1} alignItems="center" mb={1}>
+                <PictureAsPdfIcon fontSize="small" />
+                <Typography variant="h6">Resume</Typography>
+              </Stack>
               <Box
+                component="iframe"
+                src={resumeEmbedUrl}
+                title="Resume"
                 sx={{
+                  width: "100%",
+                  height: 320,
                   borderRadius: 2,
                   border: "1px solid",
                   borderColor: "divider",
-                  p: 1,
-                  bgcolor: "background.default",
-                  height: 300,
-                  overflow: "hidden",
+                  bgcolor: "background.paper",
                 }}
-              >
-                <iframe
-                  src={resumeEmbedUrl}
-                  title="Resume"
-                  style={{
-                    border: "none",
-                    width: "100%",
-                    height: "100%",
-                  }}
-                />
-              </Box>
+              />
             </>
           )}
 
@@ -281,12 +283,7 @@ export function PublicProfilePage() {
           {gallery.length > 0 && (
             <>
               <Divider sx={{ my: 3 }} />
-              <Stack
-                direction="row"
-                spacing={1}
-                alignItems="center"
-                mb={1}
-              >
+              <Stack direction="row" spacing={1} alignItems="center" mb={1}>
                 <PhotoLibraryIcon fontSize="small" />
                 <Typography variant="h6">Photos</Typography>
               </Stack>
@@ -330,40 +327,6 @@ export function PublicProfilePage() {
             </>
           )}
 
-          {/* Gallery */}
-          {profile.galleryUrls && profile.galleryUrls.length > 0 && (
-            <>
-              <Divider sx={{ my: 3 }} />
-              <Typography variant="h6" gutterBottom>
-                Photo Gallery
-              </Typography>
-              <Box
-                sx={{
-                  display: "flex",
-                  gap: 1.5,
-                  overflowX: "auto",
-                  pb: 1,
-                }}
-              >
-                {profile.galleryUrls.map((url, idx) => (
-                  <Box
-                    key={idx}
-                    component="img"
-                    src={url}
-                    alt={`Gallery ${idx + 1}`}
-                    sx={{
-                      width: 180,
-                      height: 180,
-                      objectFit: "cover",
-                      borderRadius: 2,
-                      flexShrink: 0,
-                    }}
-                  />
-                ))}
-              </Box>
-            </>
-          )}
-
           {/* Video */}
           {profile.videoUrl && (
             <>
@@ -373,7 +336,6 @@ export function PublicProfilePage() {
               </Typography>
 
               {youtubeEmbedUrl ? (
-                // YouTube embed
                 <Box
                   component="iframe"
                   src={youtubeEmbedUrl}
@@ -389,7 +351,6 @@ export function PublicProfilePage() {
                   allowFullScreen
                 />
               ) : (
-                // direct video file (mp4, webm, etc.)
                 <Box
                   sx={{
                     borderRadius: 2,
@@ -400,11 +361,7 @@ export function PublicProfilePage() {
                   <video
                     src={profile.videoUrl}
                     controls
-                    style={{
-                      width: "100%",
-                      maxHeight: 260,
-                      display: "block",
-                    }}
+                    style={{ width: "100%", maxHeight: 260, display: "block" }}
                   />
                 </Box>
               )}
@@ -438,4 +395,3 @@ export function PublicProfilePage() {
     </Box>
   );
 }
-

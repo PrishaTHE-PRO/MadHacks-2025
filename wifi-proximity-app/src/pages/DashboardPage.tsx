@@ -23,7 +23,7 @@ import {
   Radio,
 } from "@mui/material";
 
-import { useContext, useState, useEffect } from "react";
+import { useContext, useState, useEffect, forwardRef } from "react";
 import ReactDatePicker from "react-datepicker";
 import "react-datepicker/dist/react-datepicker.css";
 import { AuthContext } from "../context/AuthContext";
@@ -64,29 +64,38 @@ type EventItem = {
   role?: Role;
 };
 
-const pickImageForEvent = (eventCode: string) => {
-  // Return a picsum.photos URL with the event code as seed for consistency
-  // This ensures each event gets a unique but consistent image
-  return `https://picsum.photos/seed/${eventCode}/800/400`;
-};
+const pickImageForEvent = (eventCode: string) =>
+  `https://picsum.photos/seed/${eventCode}/800/400`;
+
+// Small wrappers so ReactDatePicker's customInput typing is happy
+const DateInput = forwardRef<HTMLInputElement, any>(function DateInput(
+  props,
+  ref
+) {
+  return <TextField {...props} fullWidth inputRef={ref} />;
+});
+
+const TimeInput = forwardRef<HTMLInputElement, any>(function TimeInput(
+  props,
+  ref
+) {
+  return <TextField {...props} fullWidth inputRef={ref} />;
+});
 
 export function DashboardPage() {
   const { user } = useContext(AuthContext);
   const theme = useTheme();
   const navigate = useNavigate();
 
-  // NEW: first name
+  // First name for welcome
   const [firstName, setFirstName] = useState("");
-
-  // Load profile first name
   useEffect(() => {
     if (!user) return;
     getProfileByUid(user.uid).then((p) => {
       if (p?.firstName) setFirstName(p.firstName);
     });
   }, [user]);
-
-  const welcomeName = firstName ? firstName : "";
+  const welcomeName = firstName || "";
 
   const [events, setEvents] = useState<EventItem[]>([]);
   const [loadingEvents, setLoadingEvents] = useState(true);
@@ -111,7 +120,7 @@ export function DashboardPage() {
   const [newEventIsPrivate, setNewEventIsPrivate] = useState<boolean>(false);
   const [createError, setCreateError] = useState("");
 
-  // Load events
+  // Load events for user
   useEffect(() => {
     if (!user) {
       setEvents([]);
@@ -138,7 +147,6 @@ export function DashboardPage() {
       .finally(() => setLoadingEvents(false));
   }, [user]);
 
-  // EVENT FUNCTIONS REMAIN IDENTICAL
   const handleJoinEvent = async () => {
     if (!eventCode.trim() || !user) return;
     const code = eventCode.trim().toUpperCase();
@@ -149,7 +157,6 @@ export function DashboardPage() {
         user.uid,
         joinRole
       );
-
       const image = eventData.imageUrl || pickImageForEvent(eventData.code);
 
       setEvents((prev) => {
@@ -238,7 +245,6 @@ export function DashboardPage() {
       setCreateError("");
       setNewEventImageFile(null);
 
-      // Close dialog and reset form after successful creation
       setCreateOpen(false);
       setNewEventName("");
       setNewEventDate("");
@@ -308,6 +314,7 @@ export function DashboardPage() {
                   height: "100%",
                 }}
               >
+                {/* dark overlay */}
                 <Box
                   sx={{
                     position: "absolute",
@@ -317,71 +324,71 @@ export function DashboardPage() {
                 />
 
                 <CardContent sx={{ position: "relative" }}>
-          <Typography variant="h6" gutterBottom>
-            <b>{event.name}</b>
-          </Typography>
+                  <Typography variant="h6" gutterBottom>
+                    <b>{event.name}</b>
+                  </Typography>
 
-          <Stack spacing={0.5}>
-            <Stack direction="row" spacing={1} alignItems="center">
-              <CalendarMonthIcon fontSize="small" />
-              <Typography variant="body2">{event.date}</Typography>
-            </Stack>
+                  <Stack spacing={0.5}>
+                    <Stack direction="row" spacing={1} alignItems="center">
+                      <CalendarMonthIcon fontSize="small" />
+                      <Typography variant="body2">{event.date}</Typography>
+                    </Stack>
 
-            <Stack direction="row" spacing={1} alignItems="center">
-              <AccessTimeIcon fontSize="small" />
-              <Typography variant="body2">{event.time}</Typography>
-            </Stack>
+                    <Stack direction="row" spacing={1} alignItems="center">
+                      <AccessTimeIcon fontSize="small" />
+                      <Typography variant="body2">{event.time}</Typography>
+                    </Stack>
 
-            <Stack direction="row" spacing={1} alignItems="center">
-              <PlaceIcon fontSize="small" />
-              <Typography variant="body2">{event.location}</Typography>
-            </Stack>
+                    <Stack direction="row" spacing={1} alignItems="center">
+                      <PlaceIcon fontSize="small" />
+                      <Typography variant="body2">{event.location}</Typography>
+                    </Stack>
 
-            <Typography variant="body2" sx={{ mt: 0.5, opacity: 0.85 }}>
-              Code: {event.code}
-            </Typography>
+                    <Typography variant="body2" sx={{ mt: 0.5, opacity: 0.85 }}>
+                      Code: {event.code}
+                    </Typography>
 
-            {event.role && (
-              <Typography variant="body2" sx={{ opacity: 0.9 }}>
-                Your role:{" "}
-                {event.role === "recruiter" ? "Recruiter" : "Attendee"}
-              </Typography>
-            )}
-          </Stack>
-        </CardContent>
+                    {event.role && (
+                      <Typography variant="body2" sx={{ opacity: 0.9 }}>
+                        Your role:{" "}
+                        {event.role === "recruiter" ? "Recruiter" : "Attendee"}
+                      </Typography>
+                    )}
+                  </Stack>
+                </CardContent>
 
-        <CardActions>
-          <Button
-            size="small"
-            component={Link}
-            to={`/events/${event.code}`}
-            sx={{ color: "common.white" }}
-          >
-            View Contacts
-          </Button>
+                <CardActions sx={{ position: "relative" }}>
+                  <Button
+                    size="small"
+                    component={Link}
+                    to={`/events/${event.code}`}
+                    sx={{ color: "common.white" }}
+                  >
+                    View Contacts
+                  </Button>
 
-          {event.joined && (
-            <Button
-              size="small"
-              component={Link}
-              to={`/nearby/${event.code}`}
-              sx={{ color: "common.white" }}
-            >
-              Find Nearby
-            </Button>
-          )}
+                  {event.joined && (
+                    <Button
+                      size="small"
+                      component={Link}
+                      to={`/nearby/${event.code}`}
+                      sx={{ color: "common.white" }}
+                    >
+                      Find Nearby
+                    </Button>
+                  )}
 
-          {user && event.createdByUid === user.uid && (
-            <Button
-              size="small"
-              color="error"
-              sx={{ ml: "auto", color: "error.light" }}
-              onClick={() => handleDeleteEvent(event.code)}
-            >
-              Delete
-            </Button>
-          )}
-        </CardActions>
+                  {user && event.createdByUid === user.uid && (
+                    <Button
+                      size="small"
+                      color="error"
+                      sx={{ ml: "auto", color: "error.light" }}
+                      onClick={() => handleDeleteEvent(event.code)}
+                    >
+                      Delete
+                    </Button>
+                  )}
+                </CardActions>
               </Card>
             </div>
           </div>
@@ -398,6 +405,7 @@ export function DashboardPage() {
           theme.palette.mode === "dark" ? "background.default" : "#f5f5f7",
       }}
     >
+      {/* Logout button */}
       <Box
         sx={{
           position: "fixed",
@@ -424,6 +432,7 @@ export function DashboardPage() {
           Logout
         </Button>
       </Box>
+
       <Container maxWidth="lg" sx={{ pt: 10, pb: 6 }}>
         <Stack spacing={4}>
           {/* Header */}
@@ -446,10 +455,7 @@ export function DashboardPage() {
           </Stack>
 
           {/* Quick actions */}
-          <Stack
-            spacing={1}
-            sx={{ animation: `${fadeUp} 0.7s ease-out` }}
-          >
+          <Stack spacing={1} sx={{ animation: `${fadeUp} 0.7s ease-out` }}>
             <Typography variant="body1">
               Welcome <b>{welcomeName}</b>!
             </Typography>
@@ -481,7 +487,7 @@ export function DashboardPage() {
             </Stack>
           </Stack>
 
-          {/* Events */}
+          {/* Events sections */}
           <Stack spacing={3}>
             {loadingEvents && (
               <Typography variant="body2" color="text.secondary">
@@ -590,9 +596,7 @@ export function DashboardPage() {
               <RadioGroup
                 row
                 value={joinRole}
-                onChange={(e) =>
-                  setJoinRole(e.target.value as Role)
-                }
+                onChange={(e) => setJoinRole(e.target.value as Role)}
               >
                 <FormControlLabel
                   value="attendee"
@@ -629,7 +633,12 @@ export function DashboardPage() {
       </Dialog>
 
       {/* CREATE DIALOG */}
-      <Dialog open={createOpen} onClose={handleCloseCreate} maxWidth="md" fullWidth>
+      <Dialog
+        open={createOpen}
+        onClose={handleCloseCreate}
+        maxWidth="md"
+        fullWidth
+      >
         <DialogTitle>Create Event</DialogTitle>
         <DialogContent>
           <Stack spacing={2} sx={{ mt: 1 }}>
@@ -640,6 +649,7 @@ export function DashboardPage() {
               value={newEventName}
               onChange={(e) => setNewEventName(e.target.value)}
             />
+
             <ReactDatePicker
               selected={newEventDateObj}
               onChange={(d: Date | null) => {
@@ -652,7 +662,7 @@ export function DashboardPage() {
                 } else setNewEventDate("");
               }}
               dateFormat="yyyy-MM-dd"
-              customInput={<TextField label="Date" fullWidth />}
+              customInput={<DateInput label="Date" />}
             />
 
             <ReactDatePicker
@@ -670,8 +680,9 @@ export function DashboardPage() {
               timeIntervals={15}
               timeCaption="Time"
               dateFormat="hh:mm aa"
-              customInput={<TextField label="Time" fullWidth />}
+              customInput={<TimeInput label="Time" />}
             />
+
             <TextField
               label="Location"
               fullWidth
@@ -707,9 +718,7 @@ export function DashboardPage() {
               <RadioGroup
                 row
                 value={createRole}
-                onChange={(e) =>
-                  setCreateRole(e.target.value as Role)
-                }
+                onChange={(e) => setCreateRole(e.target.value as Role)}
               >
                 <FormControlLabel
                   value="attendee"
