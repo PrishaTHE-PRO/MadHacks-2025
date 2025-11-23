@@ -135,7 +135,7 @@ export function ProfileEditPage() {
         videoUrl,
       });
 
-      navigate("/profile/me");
+      navigate("/profile/me", { replace: true });
     } catch (err) {
       console.error(err);
       setError("Failed to save profile. Check console for details.");

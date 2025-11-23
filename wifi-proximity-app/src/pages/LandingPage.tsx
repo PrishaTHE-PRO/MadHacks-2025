@@ -65,22 +65,49 @@ export function LandingPage() {
             }}
           />
 
-          <Stack spacing={3} textAlign="center" position="relative">
+          <Stack
+            spacing={4}
+            textAlign="center"
+            alignItems="center"
+            position="relative"
+          >
             <MotionTypography
-              variant="h3"
+              variant="h1"
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.1, duration: 0.5 }}
+              sx={{
+                fontFamily: "'Poppins', 'Inter', sans-serif",
+                fontWeight: 800,
+                fontSize: { xs: "3.5rem", md: "5rem" },
+                background: theme.palette.mode === "dark"
+                  ? "linear-gradient(135deg, #3b82f6 0%, #8b5cf6 50%, #ec4899 100%)"
+                  : "linear-gradient(135deg, #2563eb 0%, #7c3aed 50%, #db2777 100%)",
+                WebkitBackgroundClip: "text",
+                WebkitTextFillColor: "transparent",
+                backgroundClip: "text",
+                letterSpacing: "-0.02em",
+                lineHeight: 1.1,
+              }}
             >
-              WiFi Proximity App
+              Ripple
             </MotionTypography>
 
             <MotionTypography
-              variant="body1"
+              variant="h5"
               color="text.secondary"
               initial={{ opacity: 0, y: 16 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.2, duration: 0.5 }}
+              sx={{
+                fontFamily: "'Inter', sans-serif",
+                fontWeight: 400,
+                fontSize: { xs: "1.25rem", md: "1.5rem" },
+                lineHeight: 1.6,
+                maxWidth: "600px",
+                mx: "auto",
+                textAlign: "center",
+              }}
             >
               Connect with people nearby at events using shared WiFi and
               real‑time profiles. No awkward introductions, just instant
@@ -89,17 +116,55 @@ export function LandingPage() {
 
             <Stack
               direction={{ xs: "column", sm: "row" }}
-              spacing={2}
+              spacing={3}
               justifyContent="center"
-              sx={{ mt: 1 }}
+              sx={{ mt: 2 }}
             >
-              <MotionDiv whileHover={{ scale: 1.03, boxShadow: "0 12px 30px rgba(0,0,0,0.25)" }} whileTap={{ scale: 0.98 }}>
-                <Button variant="contained" component={Link} to="/login">
+              <MotionDiv whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.98 }}>
+                <Button
+                  variant="contained"
+                  component={Link}
+                  to="/login"
+                  size="large"
+                  disableRipple
+                  sx={{
+                    px: 5,
+                    py: 1.5,
+                    fontSize: "1.125rem",
+                    fontWeight: 600,
+                    borderRadius: 3,
+                    textTransform: "none",
+                    background: "linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%)",
+                    boxShadow: "0 4px 14px rgba(59, 130, 246, 0.4)",
+                    transition: "all 0.3s ease-in-out",
+                    "&:hover": {
+                      background: "linear-gradient(135deg, #2563eb 0%, #7c3aed 100%)",
+                      boxShadow: "0 8px 24px rgba(59, 130, 246, 0.5)",
+                    }
+                  }}
+                >
                   Login
                 </Button>
               </MotionDiv>
-              <MotionDiv whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.98 }}>
-                <Button variant="outlined" component={Link} to="/signup">
+              <MotionDiv whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.98 }}>
+                <Button
+                  variant="outlined"
+                  component={Link}
+                  to="/signup"
+                  size="large"
+                  sx={{
+                    px: 5,
+                    py: 1.5,
+                    fontSize: "1.125rem",
+                    fontWeight: 600,
+                    borderRadius: 3,
+                    textTransform: "none",
+                    borderWidth: 2,
+                    "&:hover": {
+                      borderWidth: 2,
+                    }
+                  }}
+                >
                   Sign Up
                 </Button>
               </MotionDiv>

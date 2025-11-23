@@ -1,0 +1,67 @@
+/* From Uiverse.io by mihocsaszilard - Modified for event cards */
+.event-card-container {
+  font-family: "Trebuchet MS", sans-serif;
+  position: relative;
+  min-height: 180px;
+  border-radius: 1em;
+  overflow: visible;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 300ms ease-in;
+}
+
+.event-card-container:hover {
+  transform: rotateZ(0.5deg) rotateY(5deg) scale(1.03);
+  box-shadow: 0 2em 1.5em rgba(0, 0, 0, 0.15);
+}
+
+.event-card-border {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 1em;
+  width: 100%;
+  height: 100%;
+  padding: 2px;
+  background: linear-gradient(
+    115deg,
+    rgba(0, 0, 0, 0.05) 12%,
+    rgba(255, 255, 255, 0.08) 27%,
+    rgba(255, 255, 255, 0.08) 31%,
+    rgba(0, 0, 0, 0.05) 52%
+  );
+}
+
+/* Removed floating shadow animation */
+
+.event-card-shadow {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  border-radius: 0.9em;
+  background: transparent;
+  box-sizing: border-box;
+  overflow: hidden;
+}
+
+.event-card-content {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  border-radius: 0.9em;
+  z-index: 2;
+  overflow: hidden;
+}
+
+@keyframes event-card-rotate {
+  0% {
+    transform: translate(-25em, -15em);
+  }
+  20% {
+    transform: translate(25em, 15em);
+  }
+  100% {
+    transform: translate(25em, 15em);
+  }
+}

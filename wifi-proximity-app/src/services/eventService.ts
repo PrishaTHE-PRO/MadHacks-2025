@@ -245,3 +245,15 @@ export async function getMembersForEvent(eventCode: string): Promise<{ userId: s
     const snaps = await getDocs(q);
     return snaps.docs.map((d) => d.data() as { userId: string; role: Role });
 }
+
+/**
+ * Get a single event by code
+ */
+export async function getEventByCode(eventCode: string): Promise<FirestoreEvent | null> {
+    const eventRef = doc(db, EVENTS_COLLECTION, eventCode);
+    const snap = await getDoc(eventRef);
+    if (!snap.exists()) {
+        return null;
+    }
+    return snap.data() as FirestoreEvent;
+}

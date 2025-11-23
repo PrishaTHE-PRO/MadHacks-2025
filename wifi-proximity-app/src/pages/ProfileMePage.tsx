@@ -21,8 +21,7 @@ import LanguageIcon from "@mui/icons-material/Language";
 import PictureAsPdfIcon from "@mui/icons-material/PictureAsPdf";
 import PhotoLibraryIcon from "@mui/icons-material/PhotoLibrary";
 import MovieIcon from "@mui/icons-material/Movie";
-import ArrowBackIcon from "@mui/icons-material/ArrowBack";
-import { useNavigate } from "react-router-dom";
+import { BackButton } from "../components/BackButton";
 
 interface Profile {
   name?: string;
@@ -55,7 +54,6 @@ const cardHover = {
 
 export function ProfileMePage() {
   const { user } = useContext(AuthContext);
-  const navigate = useNavigate();
   const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(false);
 
@@ -99,14 +97,8 @@ export function ProfileMePage() {
           "radial-gradient(circle at top, rgba(25,118,210,0.13), transparent 60%)",
       }}
     >
+      <BackButton />
       <Container maxWidth="sm">
-        <Button
-          onClick={() => navigate("/dashboard")}
-          startIcon={<ArrowBackIcon />}
-          sx={{ mb: 2 }}
-        >
-          Back
-        </Button>
         <Paper
           sx={{
             p: 4,

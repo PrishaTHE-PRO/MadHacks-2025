@@ -1,12 +1,12 @@
 // src/pages/DashboardPage.tsx
 import { Link, useNavigate } from "react-router-dom";
+import "../components/EventCard.css";
 import {
   Box,
   Container,
   Typography,
   Stack,
   Button,
-  IconButton,
   Card,
   CardContent,
   CardActions,
@@ -24,7 +24,6 @@ import {
 } from "@mui/material";
 
 import { useContext, useState, useEffect } from "react";
-import { ColorModeContext } from "../context/ColorModeContext";
 import { AuthContext } from "../context/AuthContext";
 
 import graingerHallImg from "../assets/graingerhall.jpeg";
@@ -34,8 +33,6 @@ import { storage } from "../firebase";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { useTheme } from "@mui/material/styles";
 
-import DarkModeIcon from "@mui/icons-material/DarkMode";
-import LightModeIcon from "@mui/icons-material/LightMode";
 import AddIcon from "@mui/icons-material/Add";
 import CalendarMonthIcon from "@mui/icons-material/CalendarMonth";
 import AccessTimeIcon from "@mui/icons-material/AccessTime";
@@ -52,7 +49,9 @@ import {
 } from "../services/eventService";
 
 import { getProfileByUid } from "../services/profileService";
-import { BackButton } from "../components/BackButton";
+import { ThemeSwitch } from "../components/ThemeSwitch";
+import { logout } from "../services/authService";
+import LogoutIcon from "@mui/icons-material/Logout";
 
 type EventItem = {
   code: string;
@@ -74,7 +73,6 @@ const pickImageForLocation = (location: string) => {
 };
 
 export function DashboardPage() {
-  const { toggleColorMode } = useContext(ColorModeContext);
   const { user } = useContext(AuthContext);
   const theme = useTheme();
   const navigate = useNavigate();
@@ -280,31 +278,36 @@ export function DashboardPage() {
     : events;
 
   const renderEventCard = (event: EventItem, index: number) => (
-    <Box key={event.code} sx={{ flex: "1 1 300px", maxWidth: 400 }}>
-      <Card
-        elevation={3}
-        sx={{
-          borderRadius: 3,
-          overflow: "hidden",
-          position: "relative",
-          backgroundImage: `url(${event.image})`,
-          backgroundSize: "cover",
-          backgroundPosition: "center",
-          color: "common.white",
-          animation: `${popIn} 0.4s ease-out`,
-          animationDelay: `${index * 0.05}s`,
-          animationFillMode: "backwards",
-        }}
-      >
-        <Box
-          sx={{
-            position: "absolute",
-            inset: 0,
-            bgcolor: "rgba(0,0,0,0.6)",
-          }}
-        />
+    <Box key={event.code} sx={{ flex: "1 1 350px", maxWidth: 500 }}>
+      <div className="event-card-container">
+        <div className="event-card-border">
+          <div className="event-card-shadow">
+            <div className="event-card-content">
+              <Card
+                elevation={0}
+                sx={{
+                  borderRadius: 2,
+                  overflow: "hidden",
+                  position: "relative",
+                  backgroundImage: `url(${event.image})`,
+                  backgroundSize: "cover",
+                  backgroundPosition: "center",
+                  color: "common.white",
+                  animation: `${popIn} 0.4s ease-out`,
+                  animationDelay: `${index * 0.05}s`,
+                  animationFillMode: "backwards",
+                  height: "100%",
+                }}
+              >
+                <Box
+                  sx={{
+                    position: "absolute",
+                    inset: 0,
+                    bgcolor: "rgba(0,0,0,0.6)",
+                  }}
+                />
 
-        <CardContent sx={{ position: "relative" }}>
+                <CardContent sx={{ position: "relative" }}>
           <Typography variant="h6" gutterBottom>
             <b>{event.name}</b>
           </Typography>
@@ -370,7 +373,11 @@ export function DashboardPage() {
             </Button>
           )}
         </CardActions>
-      </Card>
+              </Card>
+            </div>
+          </div>
+        </div>
+      </div>
     </Box>
   );
 
@@ -382,7 +389,32 @@ export function DashboardPage() {
           theme.palette.mode === "dark" ? "background.default" : "#f5f5f7",
       }}
     >
-      <BackButton />
+      <Box
+        sx={{
+          position: "fixed",
+          top: 30,
+          left: 15,
+          zIndex: 2000,
+        }}
+      >
+        <Button
+          variant="contained"
+          color="error"
+          startIcon={<LogoutIcon />}
+          onClick={async () => {
+            await logout();
+            navigate("/");
+          }}
+          sx={{
+            boxShadow: 2,
+            "&:hover": {
+              boxShadow: 4,
+            },
+          }}
+        >
+          Logout
+        </Button>
+      </Box>
       <Container maxWidth="lg" sx={{ pt: 10, pb: 6 }}>
         <Stack spacing={4}>
           {/* Header */}
@@ -401,13 +433,7 @@ export function DashboardPage() {
                 profile.
               </Typography>
             </Box>
-            <IconButton onClick={toggleColorMode}>
-              {theme.palette.mode === "dark" ? (
-                <LightModeIcon />
-              ) : (
-                <DarkModeIcon />
-              )}
-            </IconButton>
+            <ThemeSwitch />
           </Stack>
 
           {/* Quick actions */}
@@ -528,6 +554,8 @@ export function DashboardPage() {
           setJoinError("");
           setEventCode("");
         }}
+        maxWidth="sm"
+        fullWidth
       >
         <DialogTitle>Join Event</DialogTitle>
         <DialogContent>
@@ -592,7 +620,7 @@ export function DashboardPage() {
       </Dialog>
 
       {/* CREATE DIALOG */}
-      <Dialog open={createOpen} onClose={handleCloseCreate}>
+      <Dialog open={createOpen} onClose={handleCloseCreate} maxWidth="md" fullWidth>
         <DialogTitle>Create Event</DialogTitle>
         <DialogContent>
           <Stack spacing={2} sx={{ mt: 1 }}>

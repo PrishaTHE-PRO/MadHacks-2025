@@ -23,7 +23,7 @@ import {
   Fab,
   Tooltip,
 } from "@mui/material";
-import { saveInteraction } from "../services/eventService";
+import { saveInteraction, getEventByCode } from "../services/eventService";
 import AddIcon from "@mui/icons-material/Add";
 import { fadeUp, float, slideLeft } from "../styles/animations";
 import { BackButton } from "../components/BackButton";
@@ -54,6 +54,7 @@ export function NearbyPage() {
   const [others, setOthers] = useState<NearbyUser[]>([]);
   const [measuring, setMeasuring] = useState(false);
   const [autoOpenEnabled, setAutoOpenEnabled] = useState(true);
+  const [eventName, setEventName] = useState<string>("");
 
   const autoOpenRef = useRef(true);
   const openedProfilesRef = useRef<Set<string>>(new Set());
@@ -71,6 +72,15 @@ export function NearbyPage() {
       });
     }
   }, [user]);
+
+  // load event name
+  useEffect(() => {
+    if (eventCode) {
+      getEventByCode(eventCode).then((event) => {
+        if (event?.name) setEventName(event.name);
+      });
+    }
+  }, [eventCode]);
 
   // latency measurement
   const measureLatency = useCallback(
@@ -277,7 +287,7 @@ export function NearbyPage() {
         }}
       >
         <Typography variant="h3" gutterBottom sx={{ fontWeight: 700 }}>
-          Nearby people at {eventCode}
+          Nearby people at {eventName || eventCode}
         </Typography>
         <Typography variant="h6" color="text.secondary" gutterBottom sx={{ fontWeight: 400 }}>
           Anyone on the same WiFi with this page open and event code selected
