@@ -1,3 +1,4 @@
+// src/pages/EventContactsPage.tsx
 import { useEffect, useState, useContext } from "react";
 import { useParams, Link } from "react-router-dom";
 import { getInteractionsForEvent } from "../services/eventService";
@@ -16,6 +17,8 @@ import {
   Avatar,
   Toolbar,
 } from "@mui/material";
+import { motion } from "framer-motion";
+import { BackButton } from "../components/BackButton";
 
 interface ContactProfile {
   name: string;
@@ -32,6 +35,8 @@ interface Contact {
   createdAt: any;
   profile: ContactProfile;
 }
+
+const MotionCard = motion(Card);
 
 export function EventContactsPage() {
   const { eventCode } = useParams<{ eventCode: string }>();
@@ -60,6 +65,7 @@ export function EventContactsPage() {
             // fallback if no profile found
             return {
               ...interaction,
+<<<<<<< HEAD
               profile: {
                 name: "Unknown User",
                 slug: interaction.otherUserId,
@@ -68,6 +74,16 @@ export function EventContactsPage() {
           })
         );
 
+=======
+              profile:
+                profile || {
+                  name: "Unknown User",
+                  slug: interaction.otherUserId,
+                },
+            };
+          })
+        );
+>>>>>>> d5d11c2dee7526654f11d0f9f713f6e714b594e4
         setContacts(contactsWithProfiles);
       });
     }
@@ -81,8 +97,11 @@ export function EventContactsPage() {
         py: 4,
       }}
     >
+      {/* Back arrow (default: navigate(-1)) */}
+      <BackButton />
+
       <Container maxWidth="md">
-        {/* spacer so fixed AppBar doesn't overlap content */}
+        {/* spacer for any fixed app bar */}
         <Toolbar />
 
         <Typography variant="h4" gutterBottom align="center">
@@ -114,10 +133,19 @@ export function EventContactsPage() {
           </Paper>
         ) : (
           <Stack spacing={2}>
+<<<<<<< HEAD
             {contacts.map((contact) => (
               <Card
                 key={contact.id}
                 sx={{ boxShadow: "0 6px 18px rgba(16,24,40,0.06)" }}
+=======
+            {contacts.map((contact, index) => (
+              <MotionCard
+                key={contact.id}
+                initial={{ opacity: 0, y: 16 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: index * 0.05 }}
+>>>>>>> d5d11c2dee7526654f11d0f9f713f6e714b594e4
               >
                 <CardContent>
                   <Box
@@ -127,13 +155,18 @@ export function EventContactsPage() {
                       src={contact.profile.photoURL}
                       sx={{ width: 56, height: 56 }}
                     >
+<<<<<<< HEAD
                       {contact.profile.name
+=======
+                      {contact.profile?.name
+>>>>>>> d5d11c2dee7526654f11d0f9f713f6e714b594e4
                         ?.charAt(0)
                         .toUpperCase()}
                     </Avatar>
                     <Box sx={{ flex: 1 }}>
                       <Typography
                         variant="h6"
+<<<<<<< HEAD
                         sx={{
                           wordBreak: "break-word",
                           fontWeight: 700,
@@ -152,6 +185,17 @@ export function EventContactsPage() {
                             textShadow:
                               "0 1px 2px rgba(0,0,0,0.03)",
                           }}
+=======
+                        sx={{ wordBreak: "break-word" }}
+                      >
+                        {contact.profile?.name}
+                      </Typography>
+                      {contact.profile?.email && (
+                        <Typography
+                          variant="body2"
+                          color="text.secondary"
+                          sx={{ wordBreak: "break-word" }}
+>>>>>>> d5d11c2dee7526654f11d0f9f713f6e714b594e4
                         >
                           {contact.profile.email}
                         </Typography>
@@ -163,8 +207,11 @@ export function EventContactsPage() {
                           sx={{
                             fontStyle: "italic",
                             wordBreak: "break-word",
+<<<<<<< HEAD
                             textShadow:
                               "0 1px 2px rgba(0,0,0,0.02)",
+=======
+>>>>>>> d5d11c2dee7526654f11d0f9f713f6e714b594e4
                           }}
                         >
                           {contact.note}
@@ -182,7 +229,7 @@ export function EventContactsPage() {
                     View Profile
                   </Button>
                 </CardActions>
-              </Card>
+              </MotionCard>
             ))}
           </Stack>
         )}

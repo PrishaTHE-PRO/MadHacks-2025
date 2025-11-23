@@ -1,7 +1,10 @@
-import { Routes, Route, Navigate } from "react-router-dom";
+// src/App.tsx
+import { Routes, Route, Navigate, useLocation } from "react-router-dom";
 import { useContext, type ReactElement } from "react";
+import { AnimatePresence } from "framer-motion";
 import { AuthContext } from "./context/AuthContext";
 
+// Pages
 import { LandingPage } from "./pages/LandingPage";
 import { LoginPage } from "./pages/LoginPage";
 import { SignupPage } from "./pages/SignupPage";
@@ -12,48 +15,60 @@ import { PublicProfilePage } from "./pages/PublicProfilePage";
 import { ProfileViewPage } from "./pages/ProfileViewPage";
 import { NearbyPage } from "./pages/NearbyPage";
 import { EventContactsPage } from "./pages/EventContactsPage";
-import { Navbar } from "./components/Navbar";
+import { MapEventsPage } from "./pages/MapEventsPage";
+
+import { PageTransition } from "./components/PageTransition";
 
 function RequireAuth({ children }: { children: ReactElement }) {
-  const { user, loading } = useContext(AuthContext);
-
-  if (loading) {
-    // You can style this however; using MUI later is fine too.
-    return (
-      <div
-        style={{
-          minHeight: "100vh",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-        }}
-      >
-        <p>Loading...</p>
-      </div>
-    );
-  }
-
+  const { user } = useContext(AuthContext);
   if (!user) {
     return <Navigate to="/login" replace />;
   }
-
   return children;
 }
 
 export default function App() {
-  return (
-    <>
-      <Navbar />
-      <Routes>
-        <Route path="/" element={<LandingPage />} />
-        <Route path="/login" element={<LoginPage />} />
-        <Route path="/signup" element={<SignupPage />} />
+  const location = useLocation();
 
+  return (
+    <AnimatePresence mode="wait">
+      <Routes location={location} key={location.pathname}>
+        {/* Public routes */}
+        <Route
+          path="/"
+          element={
+            <PageTransition>
+              <LandingPage />
+            </PageTransition>
+          }
+        />
+
+        <Route
+          path="/login"
+          element={
+            <PageTransition>
+              <LoginPage />
+            </PageTransition>
+          }
+        />
+
+        <Route
+          path="/signup"
+          element={
+            <PageTransition>
+              <SignupPage />
+            </PageTransition>
+          }
+        />
+
+        {/* Protected routes */}
         <Route
           path="/dashboard"
           element={
             <RequireAuth>
-              <DashboardPage />
+              <PageTransition>
+                <DashboardPage />
+              </PageTransition>
             </RequireAuth>
           }
         />
@@ -62,7 +77,9 @@ export default function App() {
           path="/profile/edit"
           element={
             <RequireAuth>
-              <ProfileEditPage />
+              <PageTransition>
+                <ProfileEditPage />
+              </PageTransition>
             </RequireAuth>
           }
         />
@@ -71,45 +88,72 @@ export default function App() {
           path="/profile/me"
           element={
             <RequireAuth>
-              <ProfileMePage />
+              <PageTransition>
+                <ProfileMePage />
+              </PageTransition>
             </RequireAuth>
           }
         />
 
-        {/* public profile by slug – for sharing */}
-        <Route path="/p/:slug" element={<PublicProfilePage />} />
+        {/* Public profile by slug */}
+        <Route
+          path="/p/:slug"
+          element={
+            <PageTransition>
+              <PublicProfilePage />
+            </PageTransition>
+          }
+        />
 
-        {/* Profile view page with event context */}
+        {/* Viewing someone else's profile */}
         <Route
           path="/profile/view/:slug"
           element={
             <RequireAuth>
-              <ProfileViewPage />
+              <PageTransition>
+                <ProfileViewPage />
+              </PageTransition>
             </RequireAuth>
           }
         />
 
-        {/* proximity & events also require login */}
+        {/* Nearby page */}
         <Route
           path="/nearby/:eventCode"
           element={
             <RequireAuth>
-              <NearbyPage />
-            </RequireAuth>
-          }
-        />
-        <Route
-          path="/events/:eventCode"
-          element={
-            <RequireAuth>
-              <EventContactsPage />
+              <PageTransition>
+                <NearbyPage />
+              </PageTransition>
             </RequireAuth>
           }
         />
 
-        {/* fallback */}
+        {/* Contacts page WITHOUT EventsPage */}
+        <Route
+          path="/events/:eventCode"
+          element={
+            <RequireAuth>
+              <PageTransition>
+                <EventContactsPage />
+              </PageTransition>
+            </RequireAuth>
+          }
+        />
+
+        {/* Map of nearby events (GPS + Mapbox) */}
+        <Route
+          path="/map"
+          element={
+            <PageTransition>
+              <MapEventsPage />
+            </PageTransition>
+          }
+        />
+
+        {/* Fallback */}
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
-    </>
+    </AnimatePresence>
   );
 }

@@ -1,3 +1,4 @@
+// src/pages/LoginPage.tsx
 import { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { login } from "../services/authService";
@@ -11,6 +12,9 @@ import {
   Typography,
   Stack,
 } from "@mui/material";
+import { motion } from "framer-motion";
+
+const MotionPaper = motion(Paper);
 
 export function LoginPage() {
   const [email, setEmail] = useState("");
@@ -72,7 +76,14 @@ export function LoginPage() {
       }}
     >
       <Container maxWidth="xs">
-        <Paper elevation={4} sx={{ p: 4, borderRadius: 3 }}>
+        <MotionPaper
+          elevation={6}
+          sx={{ p: 4, borderRadius: 3 }}
+          initial={{ opacity: 0, y: 24 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, y: -24 }}
+          transition={{ duration: 0.4 }}
+        >
           <Typography
             variant="h5"
             component="h1"
@@ -126,10 +137,9 @@ export function LoginPage() {
             variant="body2"
             sx={{ mt: 2, textAlign: "center" }}
           >
-            Don&apos;t have an account?{" "}
-            <Link to="/signup">Sign up</Link>
+            Don&apos;t have an account? <Link to="/signup">Sign up</Link>
           </Typography>
-        </Paper>
+        </MotionPaper>
       </Container>
     </Box>
   );

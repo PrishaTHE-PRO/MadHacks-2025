@@ -10,14 +10,12 @@ import {
   Typography,
   Paper,
   Stack,
-  IconButton,
   Avatar,
   Chip,
   Divider,
   Button,
 } from "@mui/material";
 import { keyframes } from "@mui/system";
-import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 import EmailIcon from "@mui/icons-material/Email";
 import PhoneIcon from "@mui/icons-material/Phone";
 import LinkedInIcon from "@mui/icons-material/LinkedIn";
@@ -25,6 +23,7 @@ import LanguageIcon from "@mui/icons-material/Language";
 import PictureAsPdfIcon from "@mui/icons-material/PictureAsPdf";
 import PhotoLibraryIcon from "@mui/icons-material/PhotoLibrary";
 import MovieIcon from "@mui/icons-material/Movie";
+import { BackButton } from "../components/BackButton";
 
 interface Profile {
   slug: string;
@@ -106,6 +105,10 @@ export function ProfileViewPage() {
       setSaved(true);
     }
 
+<<<<<<< HEAD
+=======
+    // Navigate back depending on context
+>>>>>>> d5d11c2dee7526654f11d0f9f713f6e714b594e4
     if (backTo === "nearby" && eventCode) {
       navigate(`/nearby/${eventCode}`);
     } else if (backTo === "contacts" && eventCode) {
@@ -113,7 +116,8 @@ export function ProfileViewPage() {
     } else if (eventCode) {
       navigate(`/events/${eventCode}`);
     } else {
-      navigate("/events");
+      // fallback since /events route was removed
+      navigate("/dashboard");
     }
   };
 
@@ -135,8 +139,16 @@ export function ProfileViewPage() {
   }
 
   const avatarInitial =
+<<<<<<< HEAD
     (profile.name || profile.firstName || "").trim().charAt(0).toUpperCase() ||
     "U";
+=======
+    (profile.name || profile.firstName || "")
+      .trim()
+      .charAt(0)
+      .toUpperCase() || "U";
+
+>>>>>>> d5d11c2dee7526654f11d0f9f713f6e714b594e4
   const gallery = (profile.galleryUrls || []).filter(Boolean);
 
   return (
@@ -149,6 +161,7 @@ export function ProfileViewPage() {
           "radial-gradient(circle at top, rgba(25,118,210,0.13), transparent 60%)",
       }}
     >
+<<<<<<< HEAD
       {/* SIMPLE back button inside the content instead of a fixed floating one */}
       <Container maxWidth="sm" sx={{ py: 2 }}>
         <Button
@@ -158,6 +171,10 @@ export function ProfileViewPage() {
         >
           Back
         </Button>
+=======
+      {/* Back arrow with animated scoot + swipe-left on tap */}
+      <BackButton onClick={handleBack} />
+>>>>>>> d5d11c2dee7526654f11d0f9f713f6e714b594e4
 
         <Paper
           elevation={4}

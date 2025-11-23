@@ -1,3 +1,4 @@
+// src/pages/SignupPage.tsx
 import { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { signup } from "../services/authService";
@@ -11,6 +12,9 @@ import {
   Typography,
   Stack,
 } from "@mui/material";
+import { motion } from "framer-motion";
+
+const MotionPaper = motion(Paper);
 
 export function SignupPage() {
   const [email, setEmail] = useState("");
@@ -27,7 +31,7 @@ export function SignupPage() {
 
     try {
       await signup(email, password);
-      // TODO: also save "name" into profile later
+      // TODO: save "name" into profile later
       navigate("/dashboard");
     } catch (err) {
       console.error("Signup error:", err);
@@ -60,6 +64,7 @@ export function SignupPage() {
       } else {
         setError("An unexpected error occurred. Please try again.");
       }
+      setLoading(false);
     } finally {
       setLoading(false);
     }
@@ -76,7 +81,14 @@ export function SignupPage() {
       }}
     >
       <Container maxWidth="xs">
-        <Paper elevation={4} sx={{ p: 4, borderRadius: 3 }}>
+        <MotionPaper
+          elevation={6}
+          sx={{ p: 4, borderRadius: 3 }}
+          initial={{ opacity: 0, y: 24 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, y: -24 }}
+          transition={{ duration: 0.4 }}
+        >
           <Typography
             variant="h5"
             component="h1"
@@ -138,12 +150,10 @@ export function SignupPage() {
             variant="body2"
             sx={{ mt: 2, textAlign: "center" }}
           >
-            Already have an account?{" "}
-            <Link to="/login">Login</Link>
+            Already have an account? <Link to="/login">Login</Link>
           </Typography>
-        </Paper>
+        </MotionPaper>
       </Container>
     </Box>
   );
 }
-

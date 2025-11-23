@@ -27,8 +27,9 @@ import { ColorModeContext } from "../context/ColorModeContext";
 import { AuthContext } from "../context/AuthContext";
 import graingerHallImg from "../assets/graingerhall.jpeg";
 import unionSouthImg from "../assets/unionsouth.jpeg";
-import { storage } from "../firebase";
+import { storage, db } from "../firebase";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
+import { doc as firestoreDoc, getDoc as getFirestoreDoc } from "firebase/firestore";
 import { useTheme } from "@mui/material/styles";
 import DarkModeIcon from "@mui/icons-material/DarkMode";
 import LightModeIcon from "@mui/icons-material/LightMode";
@@ -45,6 +46,7 @@ import {
   type FirestoreEvent,
   type Role,
 } from "../services/eventService";
+import { BackButton } from "../components/BackButton";
 
 type EventItem = {
   code: string;
@@ -180,12 +182,66 @@ export function DashboardPage() {
     }
 
     const code = generateEventCode();
-    const date = newEventDate || "TBD";
-    const time = newEventTime || "TBD";
-    const location = newEventLocation || "TBD";
+    // If user entered a time but not a date, default the date to today so the time is preserved
+    let computedDate = newEventDate || "";
+    let time = newEventTime || "";
+    // normalize time to HH:MM (accepts HH:MM, H:MM, with optional seconds, and AM/PM)
+    if (time) {
+      const raw = time.trim();
+      // accept forms like "9:30", "09:30", "09:30:00", "9:30am", "9:30 AM"
+      const m = raw.match(/^(\d{1,2})[:.](\d{1,2})(?::\d{1,2})?\s*(am|pm|AM|PM)?$/);
+      if (m) {
+        let hh = Number(m[1]);
+        const mm = Number(m[2]);
+        const ampm = m[3];
+        if (!Number.isFinite(hh) || !Number.isFinite(mm) || hh < 0 || hh > 23 || mm < 0 || mm > 59) {
+          console.warn("Invalid time provided:", time);
+          time = "";
+        } else {
+          if (ampm) {
+            const lower = ampm.toLowerCase();
+            if (lower === "am") {
+              if (hh === 12) hh = 0;
+            } else if (lower === "pm") {
+              if (hh !== 12) hh = hh + 12;
+            }
+          }
+          const hhStr = String(Math.floor(hh)).padStart(2, "0");
+          const mmStr = String(Math.floor(mm)).padStart(2, "0");
+          time = `${hhStr}:${mmStr}`;
+        }
+      } else {
+        // last attempt: try parsing with Date (handles some browser formats)
+        const dt = new Date(`1970-01-01T${raw}`);
+        if (!isNaN(dt.getTime())) {
+          const hhStr = String(dt.getHours()).padStart(2, "0");
+          const mmStr = String(dt.getMinutes()).padStart(2, "0");
+          time = `${hhStr}:${mmStr}`;
+        } else {
+          console.warn("Unexpected time format:", time);
+          time = "";
+        }
+      }
+    }
+  const location = newEventLocation || "TBD";
+
+    if (!computedDate && time) {
+      const today = new Date();
+      const yyyy = today.getFullYear();
+      const mm = String(today.getMonth() + 1).padStart(2, "0");
+      const dd = String(today.getDate()).padStart(2, "0");
+      computedDate = `${yyyy}-${mm}-${dd}`;
+    }
+
+  const date = computedDate || "TBD";
+  // timeToSave will be stored in Firestore and shown in UI; if empty, use "TBD"
+  const timeToSave = time || "TBD";
 
     try {
       let imageUrl: string | undefined;
+      let lat: number | undefined;
+      let lng: number | undefined;
+      let startTimestamp: number | undefined;
 
       if (newEventImageFile) {
         const storageRef = ref(
@@ -196,30 +252,82 @@ export function DashboardPage() {
         imageUrl = await getDownloadURL(storageRef);
       }
 
+      // If we have a date (computedDate may have been set to today) and a time, compute a timestamp
+      if (computedDate && time) {
+        // combine into an ISO-like string (assumes local timezone)
+        const dt = new Date(`${computedDate}T${time}`);
+        if (!isNaN(dt.getTime())) startTimestamp = dt.getTime();
+      }
+
+      // Try to geocode the provided location string using Mapbox if token is present
+      const token = import.meta.env.VITE_MAPBOX_TOKEN as string | undefined;
+      if (token && newEventLocation && newEventLocation.trim()) {
+        try {
+          const q = encodeURIComponent(newEventLocation.trim());
+          const res = await fetch(
+            `https://api.mapbox.com/geocoding/v5/mapbox.places/${q}.json?access_token=${token}&limit=1`
+          );
+          if (res.ok) {
+            const data = await res.json();
+            const feat = data?.features?.[0];
+            if (feat && feat.center && feat.center.length >= 2) {
+              lng = Number(feat.center[0]);
+              lat = Number(feat.center[1]);
+            }
+          }
+        } catch (e) {
+          // ignore geocode failures — event will be created without lat/lng
+          console.warn("Geocode failed", e);
+        }
+      }
+
       await createEventInDb({
         code,
         name: newEventName.trim(),
         date,
-        time,
+        time: timeToSave,
         location,
         createdByUid: user.uid,
         role: createRole,
         imageUrl, // can be undefined
+        lat: lat ?? null,
+        lng: lng ?? null,
+        startTimestamp: startTimestamp ?? null,
       });
+      // Read back the saved event from Firestore to ensure displayed values
+      try {
+        const eventRef = firestoreDoc(db, "events", code);
+        const snap = await getFirestoreDoc(eventRef);
+        const saved = snap.exists() ? (snap.data() as FirestoreEvent) : null;
 
-      const newEvent: EventItem = {
-        code,
-        name: newEventName.trim(),
-        date,
-        time,
-        location,
-        joined: true,
-        image: imageUrl || pickImageForLocation(location),
-        createdByUid: user.uid,
-        role: createRole,
-      };
+        const newEvent: EventItem = {
+          code,
+          name: saved?.name || newEventName.trim(),
+          date: saved?.date || date,
+          time: saved?.time || timeToSave,
+          location: saved?.location || location,
+          joined: true,
+          image: saved?.imageUrl || imageUrl || pickImageForLocation(location),
+          createdByUid: saved?.createdByUid || user.uid,
+          role: createRole,
+        };
 
-      setEvents((prev) => [...prev, newEvent]);
+        setEvents((prev) => [...prev, newEvent]);
+      } catch (err) {
+        // fallback to local object if readback fails
+        const newEvent: EventItem = {
+          code,
+          name: newEventName.trim(),
+          date,
+          time: timeToSave,
+          location,
+          joined: true,
+          image: imageUrl || pickImageForLocation(location),
+          createdByUid: user.uid,
+          role: createRole,
+        };
+        setEvents((prev) => [...prev, newEvent]);
+      }
       setGeneratedCode(code);
       setCreateError("");
       setNewEventImageFile(null);
@@ -267,7 +375,7 @@ export function DashboardPage() {
     : events;
 
   const renderEventCard = (event: EventItem, index: number) => (
-    <Box key={event.code} sx={{ flex: "1 1 300px", maxWidth: 400 }}>
+    <Box key={event.code} sx={{ flex: "1 1 360px", maxWidth: 480 }}>
       <Card
         elevation={3}
         sx={{
@@ -292,7 +400,7 @@ export function DashboardPage() {
           }}
         />
 
-        <CardContent sx={{ position: "relative" }}>
+        <CardContent sx={{ position: "relative", px: 3, py: 2.5 }}>
           <Typography variant="h6" gutterBottom>
             <b>{event.name}</b>
           </Typography>
@@ -305,7 +413,7 @@ export function DashboardPage() {
 
             <Stack direction="row" spacing={1} alignItems="center">
               <AccessTimeIcon fontSize="small" />
-              <Typography variant="body2">{event.time}</Typography>
+              <Typography variant="body2">{formatTimeDisplay(event.time)}</Typography>
             </Stack>
 
             <Stack direction="row" spacing={1} alignItems="center">
@@ -329,7 +437,7 @@ export function DashboardPage() {
           </Stack>
         </CardContent>
 
-        <CardActions sx={{ position: "relative" }}>
+        <CardActions sx={{ position: "relative", px: 3, pb: 2 }}>
           <Button
             size="small"
             component={Link}
@@ -365,6 +473,19 @@ export function DashboardPage() {
     </Box>
   );
 
+  function formatTimeDisplay(t: string) {
+    if (!t || t === "TBD") return "TBD";
+    // expect HH:MM in 24-hour
+    const m = t.match(/^(\d{1,2}):(\d{2})$/);
+    if (!m) return t;
+    let hh = Number(m[1]);
+    const mm = m[2];
+    const period = hh >= 12 ? "PM" : "AM";
+    hh = hh % 12;
+    if (hh === 0) hh = 12;
+    return `${hh}:${mm} ${period}`;
+  }
+
   return (
     <Box
       sx={{
@@ -375,6 +496,7 @@ export function DashboardPage() {
             : "#f5f5f7",
       }}
     >
+      <BackButton />
       <Container maxWidth="lg" sx={{ pt: 10, pb: 6 }}>
         <Stack spacing={4}>
           {/* Header */}
@@ -417,6 +539,9 @@ export function DashboardPage() {
                 to="/profile/me"
               >
                 My Profile
+              </Button>
+              <Button color="secondary" variant="contained" component={Link} to="/map">
+                Search for nearby events
               </Button>
               <Button
                 variant="outlined"
