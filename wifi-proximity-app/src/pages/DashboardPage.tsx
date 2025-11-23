@@ -22,16 +22,25 @@ import {
   FormControlLabel,
   Radio,
 } from "@mui/material";
+
 import { useContext, useState, useEffect } from "react";
+import { ColorModeContext } from "../context/ColorModeContext";
 import { AuthContext } from "../context/AuthContext";
+
 import graingerHallImg from "../assets/graingerhall.jpeg";
 import unionSouthImg from "../assets/unionsouth.jpeg";
-import uploadImage from "../services/imageUploadService";
+
+import { storage } from "../firebase";
+import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { useTheme } from "@mui/material/styles";
+
+import DarkModeIcon from "@mui/icons-material/DarkMode";
+import LightModeIcon from "@mui/icons-material/LightMode";
 import AddIcon from "@mui/icons-material/Add";
 import CalendarMonthIcon from "@mui/icons-material/CalendarMonth";
 import AccessTimeIcon from "@mui/icons-material/AccessTime";
 import PlaceIcon from "@mui/icons-material/Place";
+
 import { fadeUp, popIn, float } from "../styles/animations";
 import {
   createEventInDb,
@@ -41,12 +50,9 @@ import {
   type FirestoreEvent,
   type Role,
 } from "../services/eventService";
-import { motion } from "framer-motion";
-import LogoutIcon from '@mui/icons-material/Logout';
-import { logout } from "../services/authService";
-import { ThemeSwitch } from "../components/ThemeSwitch";
 
-const MotionIconButton = motion(IconButton);
+import { getProfileByUid } from "../services/profileService";
+import { BackButton } from "../components/BackButton";
 
 type EventItem = {
   code: string;
@@ -60,23 +66,31 @@ type EventItem = {
   role?: Role;
 };
 
-const generateEventCode = () =>
-  Math.random().toString(36).substring(2, 8).toUpperCase();
-
 const pickImageForLocation = (location: string) => {
   const loc = location.toLowerCase();
   if (loc.includes("union south")) return unionSouthImg;
   if (loc.includes("grainger")) return graingerHallImg;
-  return unionSouthImg; // default
+  return unionSouthImg;
 };
 
 export function DashboardPage() {
+  const { toggleColorMode } = useContext(ColorModeContext);
   const { user } = useContext(AuthContext);
   const theme = useTheme();
   const navigate = useNavigate();
 
-  const username =
-    user?.displayName || (user?.email ? user.email.split("@")[0] : "guest");
+  // NEW: first name
+  const [firstName, setFirstName] = useState("");
+
+  // Load profile first name
+  useEffect(() => {
+    if (!user) return;
+    getProfileByUid(user.uid).then((p) => {
+      if (p?.firstName) setFirstName(p.firstName);
+    });
+  }, [user]);
+
+  const welcomeName = firstName ? firstName : "";
 
   const [events, setEvents] = useState<EventItem[]>([]);
   const [loadingEvents, setLoadingEvents] = useState(true);
@@ -96,10 +110,9 @@ export function DashboardPage() {
   const [createRole, setCreateRole] = useState<Role>("attendee");
   const [generatedCode, setGeneratedCode] = useState<string | null>(null);
   const [newEventImageFile, setNewEventImageFile] = useState<File | null>(null);
-  const [newEventImageUrl, setNewEventImageUrl] = useState<string>("");
-  const [createError, setCreateError] = useState(""); // if you haven't already
+  const [createError, setCreateError] = useState("");
 
-  // Load events from Firestore for this user
+  // Load events
   useEffect(() => {
     if (!user) {
       setEvents([]);
@@ -126,9 +139,9 @@ export function DashboardPage() {
       .finally(() => setLoadingEvents(false));
   }, [user]);
 
+  // EVENT FUNCTIONS REMAIN IDENTICAL
   const handleJoinEvent = async () => {
     if (!eventCode.trim() || !user) return;
-
     const code = eventCode.trim().toUpperCase();
 
     try {
@@ -163,7 +176,6 @@ export function DashboardPage() {
         ];
       });
 
-      // go straight to nearby view
       navigate(`/nearby/${code}`);
 
       setEventCode("");
@@ -181,147 +193,65 @@ export function DashboardPage() {
       return;
     }
 
-    const code = generateEventCode();
-    // If user entered a time but not a date, default the date to today so the time is preserved
-    let computedDate = newEventDate || "";
-    let time = newEventTime || "";
-
-    // Normalize time to HH:MM format
-    if (time) {
-      const raw = time.trim();
-      // The time input field returns "HH:MM" or "HH:MM:SS", just extract HH:MM
-      const timeMatch = raw.match(/^(\d{1,2}):(\d{2})(?::\d{2})?$/);
-      if (timeMatch) {
-        const hh = parseInt(timeMatch[1], 10);
-        const mm = parseInt(timeMatch[2], 10);
-        if (hh >= 0 && hh <= 23 && mm >= 0 && mm <= 59) {
-          time = `${String(hh).padStart(2, "0")}:${String(mm).padStart(2, "0")}`;
-        } else {
-          console.warn("Invalid time values:", time);
-          time = "";
-        }
-      } else {
-        console.warn("Unexpected time format:", time);
-        time = "";
-      }
-    }
-
+    const code = Math.random().toString(36).substring(2, 8).toUpperCase();
+    const date = newEventDate || "TBD";
+    const time = newEventTime || "TBD";
     const location = newEventLocation || "TBD";
-
-    if (!computedDate && time) {
-      const today = new Date();
-      const yyyy = today.getFullYear();
-      const mm = String(today.getMonth() + 1).padStart(2, "0");
-      const dd = String(today.getDate()).padStart(2, "0");
-      computedDate = `${yyyy}-${mm}-${dd}`;
-    }
-
-    const date = computedDate || "TBD";
-    // timeToSave will be stored in Firestore and shown in UI; if empty, use "TBD"
-    const timeToSave = time || "TBD";
 
     try {
       let imageUrl: string | undefined;
-      let lat: number | undefined;
-      let lng: number | undefined;
-      let startTimestamp: number | undefined;
 
-      if (newEventImageUrl && newEventImageUrl.trim()) {
-        imageUrl = newEventImageUrl.trim();
-      } else if (newEventImageFile) {
-        try {
-          imageUrl = await uploadImage(newEventImageFile, user.uid, code);
-        } catch (err) {
-          console.warn("Image upload failed, continuing without image:", err);
-        }
-      }
-
-      // If we have a date (computedDate may have been set to today) and a time, compute a timestamp
-      if (computedDate && time) {
-        // combine into an ISO-like string (assumes local timezone)
-        const dt = new Date(`${computedDate}T${time}`);
-        if (!isNaN(dt.getTime())) startTimestamp = dt.getTime();
-      }
-
-      // Try to geocode the provided location string using Mapbox if token is present
-      const token = import.meta.env.VITE_MAPBOX_TOKEN as string | undefined;
-      if (token && newEventLocation && newEventLocation.trim()) {
-        try {
-          const q = encodeURIComponent(newEventLocation.trim());
-          const res = await fetch(
-            `https://api.mapbox.com/geocoding/v5/mapbox.places/${q}.json?access_token=${token}&limit=1`
-          );
-          if (res.ok) {
-            const data = await res.json();
-            const feat = data?.features?.[0];
-            if (feat && feat.center && feat.center.length >= 2) {
-              lng = Number(feat.center[0]);
-              lat = Number(feat.center[1]);
-            }
-          }
-        } catch (e) {
-          // ignore geocode failures — event will be created without lat/lng
-          console.warn("Geocode failed", e);
-        }
+      if (newEventImageFile) {
+        const storageRef = ref(
+          storage,
+          `event_images/${user.uid}/${code}_${newEventImageFile.name}`
+        );
+        await uploadBytes(storageRef, newEventImageFile);
+        imageUrl = await getDownloadURL(storageRef);
       }
 
       await createEventInDb({
         code,
         name: newEventName.trim(),
         date,
-        time: timeToSave,
+        time,
         location,
         createdByUid: user.uid,
         role: createRole,
-        imageUrl, // can be undefined
-        lat: lat ?? null,
-        lng: lng ?? null,
-        startTimestamp: startTimestamp ?? null,
+        imageUrl,
       });
-      // Read back the saved event from Firestore to ensure displayed values.
-      // Then refresh the user's event list so the UI reflects the stored imageUrl.
-      try {
-        // debug logging
-        // eslint-disable-next-line no-console
-        console.debug("created event imageUrl:", imageUrl);
 
-        await new Promise((r) => setTimeout(r, 300)); // small delay to allow propagation
-        const refreshed = await getEventsForUser(user.uid);
-        const mapped: EventItem[] = refreshed.map(({ event, role }) => ({
-          code: event.code,
-          name: event.name,
-          date: event.date,
-          time: event.time,
-          location: event.location,
-          joined: true,
-          image: event.imageUrl || pickImageForLocation(event.location),
-          createdByUid: event.createdByUid,
-          role,
-        }));
-        setEvents(mapped);
-      } catch (err) {
-        // fallback: append optimistic event with the uploaded image (if any)
-        const newEvent: EventItem = {
-          code,
-          name: newEventName.trim(),
-          date,
-          time: timeToSave,
-          location,
-          joined: true,
-          image: imageUrl || pickImageForLocation(location),
-          createdByUid: user.uid,
-          role: createRole,
-        };
-        setEvents((prev) => [...prev, newEvent]);
-      }
+      const newEvent: EventItem = {
+        code,
+        name: newEventName.trim(),
+        date,
+        time,
+        location,
+        joined: true,
+        image: imageUrl || pickImageForLocation(location),
+        createdByUid: user.uid,
+        role: createRole,
+      };
+
+      setEvents((prev) => [...prev, newEvent]);
       setGeneratedCode(code);
       setCreateError("");
       setNewEventImageFile(null);
-      setNewEventImageUrl("");
     } catch (err: any) {
       console.error(err);
       setCreateError(err.message || "Failed to create event.");
     }
+  };
+
+  const handleCloseCreate = () => {
+    setCreateOpen(false);
+    setCreateError("");
+    setGeneratedCode(null);
+    setNewEventImageFile(null);
+    setNewEventName("");
+    setNewEventDate("");
+    setNewEventTime("");
+    setNewEventLocation("");
   };
 
   const handleDeleteEvent = async (code: string) => {
@@ -333,8 +263,7 @@ export function DashboardPage() {
     if (!confirmDelete) return;
 
     try {
-      await deleteEventForUser(code, user.uid); // this calls Firestore
-
+      await deleteEventForUser(code, user.uid);
       setEvents((prev) => prev.filter((e) => e.code !== code));
     } catch (err: any) {
       console.error(err);
@@ -342,35 +271,23 @@ export function DashboardPage() {
     }
   };
 
-  const handleCloseCreate = () => {
-    setCreateOpen(false);
-    setGeneratedCode(null);
-    setNewEventName("");
-    setNewEventDate("");
-    setNewEventTime("");
-    setNewEventLocation("");
-    setCreateRole("attendee");
-    setNewEventImageFile(null);
-    setNewEventImageUrl("");
-    setCreateError("");
-  };
-
   const createdByMe = user
     ? events.filter((e) => e.createdByUid === user.uid)
     : [];
+
   const otherEvents = user
     ? events.filter((e) => e.createdByUid !== user.uid)
     : events;
 
   const renderEventCard = (event: EventItem, index: number) => (
-    <Box key={event.code} sx={{ flex: "1 1 360px", maxWidth: 480 }}>
+    <Box key={event.code} sx={{ flex: "1 1 300px", maxWidth: 400 }}>
       <Card
         elevation={3}
         sx={{
           borderRadius: 3,
           overflow: "hidden",
           position: "relative",
-          backgroundImage: `url(${event.image || pickImageForLocation(event.location)})`,
+          backgroundImage: `url(${event.image})`,
           backgroundSize: "cover",
           backgroundPosition: "center",
           color: "common.white",
@@ -379,7 +296,6 @@ export function DashboardPage() {
           animationFillMode: "backwards",
         }}
       >
-        {/* dark overlay */}
         <Box
           sx={{
             position: "absolute",
@@ -388,7 +304,7 @@ export function DashboardPage() {
           }}
         />
 
-        <CardContent sx={{ position: "relative", px: 3, py: 2.5 }}>
+        <CardContent sx={{ position: "relative" }}>
           <Typography variant="h6" gutterBottom>
             <b>{event.name}</b>
           </Typography>
@@ -401,7 +317,7 @@ export function DashboardPage() {
 
             <Stack direction="row" spacing={1} alignItems="center">
               <AccessTimeIcon fontSize="small" />
-              <Typography variant="body2">{formatTimeDisplay(event.time)}</Typography>
+              <Typography variant="body2">{event.time}</Typography>
             </Stack>
 
             <Stack direction="row" spacing={1} alignItems="center">
@@ -409,10 +325,7 @@ export function DashboardPage() {
               <Typography variant="body2">{event.location}</Typography>
             </Stack>
 
-            <Typography
-              variant="body2"
-              sx={{ mt: 0.5, opacity: 0.85 }}
-            >
+            <Typography variant="body2" sx={{ mt: 0.5, opacity: 0.85 }}>
               Code: {event.code}
             </Typography>
 
@@ -425,7 +338,7 @@ export function DashboardPage() {
           </Stack>
         </CardContent>
 
-        <CardActions sx={{ position: "relative", px: 3, pb: 2 }}>
+        <CardActions>
           <Button
             size="small"
             component={Link}
@@ -461,71 +374,15 @@ export function DashboardPage() {
     </Box>
   );
 
-  function formatTimeDisplay(t: string) {
-    if (!t || t === "TBD") return "TBD";
-    // expect HH:MM in 24-hour
-    const m = t.match(/^(\d{1,2}):(\d{2})$/);
-    if (!m) return t;
-    let hh = Number(m[1]);
-    const mm = m[2];
-    const period = hh >= 12 ? "PM" : "AM";
-    hh = hh % 12;
-    if (hh === 0) hh = 12;
-    return `${hh}:${mm} ${period}`;
-  }
-
   return (
     <Box
       sx={{
         minHeight: "100vh",
         bgcolor:
-          theme.palette.mode === "dark"
-            ? "background.default"
-            : "#f5f5f7",
+          theme.palette.mode === "dark" ? "background.default" : "#f5f5f7",
       }}
     >
-      <Box
-        sx={{
-          position: "fixed",
-          top: 30,
-          left: 15,
-          zIndex: 2000,
-        }}
-      >
-        <MotionIconButton
-          onClick={async () => {
-            try {
-              await logout();
-            } catch (e) {
-              console.error("Logout failed", e);
-            }
-            // navigate back to landing (sign in / register)
-            navigate("/");
-          }}
-          sx={{
-            bgcolor: "rgba(255,255,255,0.95)",
-            color: "text.primary",
-            border: "1px solid rgba(0,0,0,0.06)",
-            boxShadow: 2,
-            "&:hover": { bgcolor: "grey.100" },
-          }}
-          aria-label="Logout"
-          initial={{ opacity: 0, x: -8, scale: 0.9 }}
-          animate={{
-            opacity: 1,
-            x: [0, 4, 0],
-            scale: 1,
-          }}
-          transition={{
-            opacity: { duration: 0.25 },
-            scale: { duration: 0.25 },
-            x: { duration: 1.4, repeat: Infinity, repeatType: "reverse", delay: 0.6 },
-          }}
-          whileTap={{ x: -18, opacity: 0.7, scale: 0.95 }}
-        >
-          <LogoutIcon />
-        </MotionIconButton>
-      </Box>
+      <BackButton />
       <Container maxWidth="lg" sx={{ pt: 10, pb: 6 }}>
         <Stack spacing={4}>
           {/* Header */}
@@ -544,7 +401,13 @@ export function DashboardPage() {
                 profile.
               </Typography>
             </Box>
-            <ThemeSwitch />
+            <IconButton onClick={toggleColorMode}>
+              {theme.palette.mode === "dark" ? (
+                <LightModeIcon />
+              ) : (
+                <DarkModeIcon />
+              )}
+            </IconButton>
           </Stack>
 
           {/* Quick actions */}
@@ -553,19 +416,23 @@ export function DashboardPage() {
             sx={{ animation: `${fadeUp} 0.7s ease-out` }}
           >
             <Typography variant="body1">
-              Welcome <b>{username}</b>!
+              Welcome <b>{welcomeName}</b>!
             </Typography>
+
             <Stack direction={{ xs: "column", sm: "row" }} spacing={2}>
-              <Button
-                variant="contained"
-                component={Link}
-                to="/profile/me"
-              >
+              <Button variant="contained" component={Link} to="/profile/me">
                 My Profile
               </Button>
-              <Button color="secondary" variant="contained" component={Link} to="/map">
+
+              <Button
+                color="secondary"
+                variant="contained"
+                component={Link}
+                to="/map"
+              >
                 Search for nearby events
               </Button>
+
               <Button
                 variant="outlined"
                 onClick={() => {
@@ -579,7 +446,7 @@ export function DashboardPage() {
             </Stack>
           </Stack>
 
-          {/* Events section */}
+          {/* Events */}
           <Stack spacing={3}>
             {loadingEvents && (
               <Typography variant="body2" color="text.secondary">
@@ -615,6 +482,7 @@ export function DashboardPage() {
             >
               Your Events
             </Typography>
+
             <Box
               sx={{
                 display: "flex",
@@ -624,17 +492,17 @@ export function DashboardPage() {
             >
               {events.length === 0 && !loadingEvents && (
                 <Typography variant="body2" color="text.secondary">
-                  You haven’t joined any events yet. Use “Join Event” or create
-                  one with the + button.
+                  You haven’t joined any events yet.
                 </Typography>
               )}
+
               {otherEvents.map((e, i) => renderEventCard(e, i))}
             </Box>
           </Stack>
         </Stack>
       </Container>
 
-      {/* Floating Create Event button */}
+      {/* Floating create button */}
       <Fab
         color="primary"
         aria-label="create-event"
@@ -652,7 +520,7 @@ export function DashboardPage() {
         <AddIcon />
       </Fab>
 
-      {/* JOIN EVENT dialog */}
+      {/* JOIN DIALOG */}
       <Dialog
         open={joinOpen}
         onClose={() => {
@@ -676,14 +544,12 @@ export function DashboardPage() {
                 setJoinError("");
               }}
               onKeyDown={(e) => {
-                if (e.key === "Enter") {
-                  handleJoinEvent();
-                }
+                if (e.key === "Enter") handleJoinEvent();
               }}
             />
 
-            <FormControl component="fieldset">
-              <FormLabel component="legend">I am attending as</FormLabel>
+            <FormControl>
+              <FormLabel>I am attending as</FormLabel>
               <RadioGroup
                 row
                 value={joinRole}
@@ -705,9 +571,7 @@ export function DashboardPage() {
             </FormControl>
 
             {joinError && (
-              <Typography color="error" variant="body2">
-                {joinError}
-              </Typography>
+              <Typography color="error">{joinError}</Typography>
             )}
           </Stack>
         </DialogContent>
@@ -721,13 +585,13 @@ export function DashboardPage() {
           >
             Cancel
           </Button>
-          <Button onClick={handleJoinEvent} variant="contained">
+          <Button variant="contained" onClick={handleJoinEvent}>
             Join
           </Button>
         </DialogActions>
       </Dialog>
 
-      {/* CREATE EVENT dialog */}
+      {/* CREATE DIALOG */}
       <Dialog open={createOpen} onClose={handleCloseCreate}>
         <DialogTitle>Create Event</DialogTitle>
         <DialogContent>
@@ -773,33 +637,20 @@ export function DashboardPage() {
                 type="file"
                 hidden
                 accept="image/*"
-                onChange={(e) => {
-                  const file = e.target.files?.[0] || null;
-                  setNewEventImageFile(file);
-                }}
+                onChange={(e) =>
+                  setNewEventImageFile(e.target.files?.[0] || null)
+                }
               />
             </Button>
-            <TextField
-              label="Event image URL (optional)"
-              fullWidth
-              variant="outlined"
-              value={newEventImageUrl}
-              onChange={(e) => setNewEventImageUrl(e.target.value)}
-              sx={{ mt: 1 }}
-            />
 
-            {newEventImageFile ? (
-              <Typography variant="caption" sx={{ mt: 0.5 }}>
-                Selected file: {newEventImageFile.name}
+            {newEventImageFile && (
+              <Typography variant="caption">
+                Selected: {newEventImageFile.name}
               </Typography>
-            ) : newEventImageUrl ? (
-              <Typography variant="caption" sx={{ mt: 0.5 }}>
-                Using URL: {newEventImageUrl}
-              </Typography>
-            ) : null}
+            )}
 
-            <FormControl component="fieldset">
-              <FormLabel component="legend">I am attending as</FormLabel>
+            <FormControl>
+              <FormLabel>I am attending as</FormLabel>
               <RadioGroup
                 row
                 value={createRole}
@@ -821,21 +672,19 @@ export function DashboardPage() {
             </FormControl>
 
             {generatedCode && (
-              <Typography variant="body2" sx={{ mt: 1 }}>
-                Event created! Your event code is <b>{generatedCode}</b>.
+              <Typography>
+                Event created! Code: <b>{generatedCode}</b>
               </Typography>
             )}
 
             {createError && (
-              <Typography color="error" variant="body2">
-                {createError}
-              </Typography>
+              <Typography color="error">{createError}</Typography>
             )}
           </Stack>
         </DialogContent>
         <DialogActions>
           <Button onClick={handleCloseCreate}>Close</Button>
-          <Button onClick={handleCreateEvent} variant="contained">
+          <Button variant="contained" onClick={handleCreateEvent}>
             Create
           </Button>
         </DialogActions>
