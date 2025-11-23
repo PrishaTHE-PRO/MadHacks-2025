@@ -1,14 +1,9 @@
-import {
-  useEffect,
-  useState,
-  useContext,
-  useRef,
-  useCallback,
-} from "react";
+// src/pages/NearbyPage.tsx
+import { useEffect, useState, useContext } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { getProximitySocket } from "../services/proximityService";
 import { AuthContext } from "../context/AuthContext";
-import { getProfileByUid } from "../services/profileService";
+import { getProfileByUid, getProfileByIdOrSlug } from "../services/profileService";
 import {
   Box,
   Container,
@@ -19,21 +14,16 @@ import {
   Button,
   Stack,
   Chip,
-  Fab,
-  Tooltip,
 } from "@mui/material";
-import { saveInteraction } from "../services/eventService";
-import AddIcon from "@mui/icons-material/Add";
-import { fadeUp, float, slideLeft } from "../styles/animations";
+import { saveInteraction, getEventByCode } from "../services/eventService";
+import { fadeUp } from "../styles/animations";
 import { BackButton } from "../components/BackButton";
 
-// ----------------------
-// NearbyPage Constants
-// ----------------------
 interface NearbyUser {
   deviceId: string;
   profileSlug: string;
   userId: string;
+  name?: string;
   latency?: number;
   timestamp?: number;
 }
@@ -53,19 +43,9 @@ export function NearbyPage() {
 
   const [myProfileSlug, setMyProfileSlug] = useState<string>("");
   const [others, setOthers] = useState<NearbyUser[]>([]);
-  const [measuring, setMeasuring] = useState(false);
-  const [autoOpenEnabled, setAutoOpenEnabled] = useState(true);
+  const [eventName, setEventName] = useState<string>("");
 
-  const autoOpenRef = useRef(true);
-  const openedProfilesRef = useRef<Set<string>>(new Set());
-
-  useEffect(() => {
-    autoOpenRef.current = autoOpenEnabled;
-  }, [autoOpenEnabled]);
-
-  // ----------------------
   // Load my profile slug
-  // ----------------------
   useEffect(() => {
     if (user) {
       getProfileByUid(user.uid).then((p) => {
@@ -74,89 +54,32 @@ export function NearbyPage() {
     }
   }, [user]);
 
-  // ----------------------
-  // Latency Ping/Pong
-  // ----------------------
-  const measureLatency = useCallback(
-    async (targetDeviceId: string): Promise<number> => {
-      return new Promise((resolve) => {
-        const socket = getProximitySocket();
-        const pingStart = Date.now();
+  // Load event name
+  useEffect(() => {
+    if (!eventCode) return;
+    getEventByCode(eventCode).then((evt) => {
+      if (evt?.name) setEventName(evt.name);
+    });
+  }, [eventCode]);
 
-        const handler = (data: any) => {
-          if (
-            data.fromDeviceId === targetDeviceId &&
-            data.toDeviceId === deviceId
-          ) {
-            const latency = Date.now() - pingStart;
-            socket.off("latencyPong", handler);
-            resolve(latency);
-          }
-        };
+  // When user clicks "View Profile"
+  async function handleViewProfile(otherUser: NearbyUser) {
+    if (!user || !eventCode || !otherUser.profileSlug) return;
 
-        socket.on("latencyPong", handler);
-        socket.emit("latencyPing", { targetDeviceId, deviceId });
+    // log interaction
+    await saveInteraction({
+      ownerUserId: user.uid,
+      otherUserId: otherUser.userId,
+      eventCode,
+      note: "Met via WiFi proximity",
+    });
 
-        setTimeout(() => {
-          socket.off("latencyPong", handler);
-          resolve(9999);
-        }, 1000);
-      });
-    },
-    [deviceId]
-  );
+    navigate(
+      `/profile/view/${otherUser.profileSlug}?eventCode=${eventCode}&back=nearby`
+    );
+  }
 
-  // ----------------------
-  // Auto-open if in range
-  // ----------------------
-  const openProfileIfClose = useCallback(
-    async (
-      otherUser: NearbyUser,
-      opts: {
-        latencyOverride?: number;
-        ignoreAutoOpenGate?: boolean;
-        allowRepeat?: boolean;
-      } = {}
-    ) => {
-      if (!user || !eventCode) return;
-
-      const {
-        latencyOverride,
-        ignoreAutoOpenGate = false,
-        allowRepeat = false,
-      } = opts;
-
-      const latency =
-        latencyOverride !== undefined
-          ? latencyOverride
-          : await measureLatency(otherUser.deviceId);
-
-      if (latency >= PROXIMITY_LATENCY_MS) return;
-      if (!ignoreAutoOpenGate && !autoOpenRef.current) return;
-      if (!allowRepeat && openedProfilesRef.current.has(otherUser.deviceId))
-        return;
-
-      openedProfilesRef.current.add(otherUser.deviceId);
-
-      if (!otherUser.profileSlug) return;
-
-      await saveInteraction({
-        ownerUserId: user.uid,
-        otherUserId: otherUser.profileSlug,
-        eventCode,
-        note: `Auto-detected via WiFi proximity (${latency}ms)`,
-      });
-
-      navigate(
-        `/profile/view/${otherUser.profileSlug}?eventCode=${eventCode}&back=nearby`
-      );
-    },
-    [user, eventCode, measureLatency, navigate]
-  );
-
-  // ----------------------
-  // Socket Setup
-  // ----------------------
+  // Socket setup
   useEffect(() => {
     if (!eventCode || !user) return;
 
@@ -176,143 +99,112 @@ export function NearbyPage() {
     sendPresence();
     const interval = setInterval(sendPresence, 1500);
 
-    socket.on("presence", (data: any) => {
+    socket.on("presence", async (data: any) => {
       if (data.deviceId === deviceId) return;
 
       const now = Date.now();
       const latency = now - (data.timestamp || now);
 
+      let displayName: string | undefined;
+      try {
+        if (data.userId) {
+          const p = await getProfileByIdOrSlug(data.userId);
+          if (p?.name) displayName = p.name;
+        }
+      } catch (err) {
+        console.error("Failed to load nearby user profile", err);
+      }
+
       const incoming: NearbyUser = {
         deviceId: data.deviceId,
         profileSlug: data.profileSlug,
         userId: data.userId,
+        name: displayName,
         latency,
         timestamp: now,
       };
 
-      if (latency < PROXIMITY_LATENCY_MS) {
-        void openProfileIfClose(incoming, { latencyOverride: latency });
-      }
-
       setOthers((prev) => {
-        const exists = prev.find((p) => p.deviceId === data.deviceId);
-        if (exists) {
-          return prev.map((p) =>
-            p.deviceId === data.deviceId ? incoming : p
-          );
+        const idx = prev.findIndex((p) => p.deviceId === data.deviceId);
+        if (idx !== -1) {
+          const next = [...prev];
+          next[idx] = incoming;
+          return next;
         }
         return [...prev, incoming];
       });
     });
 
-    socket.on("latencyPing", (data: any) => {
-      if (data.toDeviceId !== deviceId) return;
-      socket.emit("latencyPong", {
-        fromDeviceId: deviceId,
-        toDeviceId: data.fromDeviceId,
-      });
-    });
-
-    socket.on("incomingProfile", (data: any) => {
-      if (data.toDeviceId === deviceId) {
-        navigate(
-          `/profile/view/${data.profileSlug}?eventCode=${eventCode}&back=nearby`
-        );
-      }
-    });
-
     return () => {
       clearInterval(interval);
       socket.off("presence");
-      socket.off("latencyPing");
-      socket.off("incomingProfile");
     };
-  }, [
-    deviceId,
-    eventCode,
-    myProfileSlug,
-    navigate,
-    openProfileIfClose,
-    user,
-  ]);
+  }, [deviceId, eventCode, myProfileSlug, user]);
 
-  // ----------------------
   // UI
-  // ----------------------
   return (
     <Box sx={{ minHeight: "100vh", pt: 10, pb: 4 }}>
-      <BackButton onClick={() => navigate(`/events/${eventCode}`)} />
+      {/* Back → dashboard */}
+      <BackButton onClick={() => navigate("/dashboard")} />
 
       <Container maxWidth="md" sx={{ animation: `${fadeUp} 0.6s ease-out` }}>
-        <Typography variant="h3" gutterBottom>
-          Nearby people at {eventCode}
+        <Typography variant="h3" gutterBottom sx={{ fontWeight: 700 }}>
+          Nearby people at {eventName || eventCode}
+        </Typography>
+
+        <Typography
+          variant="h6"
+          color="text.secondary"
+          gutterBottom
+          sx={{ fontWeight: 400 }}
+        >
+          Anyone on the same WiFi with this page open and event code selected
+          will appear here.
         </Typography>
 
         <Stack direction="row" spacing={2} sx={{ mt: 3 }}>
           <Chip
             size="medium"
             color="primary"
-            label={`Latency < ${PROXIMITY_LATENCY_MS}ms (~${PROXIMITY_RADIUS_FEET}ft)`}
+            label={`Latency < ${PROXIMITY_LATENCY_MS}ms`}
           />
-          <Typography>
-            Auto pop-up {autoOpenEnabled ? "ON" : "OFF"}
-          </Typography>
         </Stack>
+
+        {others.length === 0 && (
+          <Typography
+            variant="h6"
+            color="text.secondary"
+            sx={{ mt: 4, fontWeight: 400 }}
+          >
+            Waiting for other devices…
+          </Typography>
+        )}
 
         <Stack spacing={3} sx={{ mt: 4 }}>
           {others.map((o) => {
-            const isNearby = o.latency && o.latency < PROXIMITY_LATENCY_MS;
+            const isNearby =
+              o.latency !== undefined && o.latency < PROXIMITY_LATENCY_MS;
+            const displayName = o.name || "Someone nearby";
 
             return (
               <Card key={o.deviceId}>
                 <CardContent>
-                  <Typography variant="h5">
-                    Someone nearby {isNearby && "🎯"}
+                  <Typography variant="h5" sx={{ fontWeight: 600, mb: 1.5 }}>
+                    {displayName} {isNearby && "🎯"}
                   </Typography>
-                  <Typography variant="body1">
-                    Latency: {o.latency ?? "…"}ms
+                  <Typography variant="body1" color="text.secondary">
+                    {o.latency !== undefined
+                      ? `Latency: ${o.latency}ms`
+                      : "Measuring distance..."}
                   </Typography>
                 </CardContent>
 
-                <CardActions>
+                <CardActions sx={{ p: 2, pt: 0 }}>
                   <Button
-                    variant={isNearby ? "contained" : "outlined"}
-                    onClick={() => {
-                      setMeasuring(true);
-                      measureLatency(o.deviceId).then((latency) => {
-                        setMeasuring(false);
-
-                        setOthers((prev) =>
-                          prev.map((x) =>
-                            x.deviceId === o.deviceId ? { ...x, latency } : x
-                          )
-                        );
-
-                        void openProfileIfClose(o, {
-                          latencyOverride: latency,
-                          ignoreAutoOpenGate: true,
-                          allowRepeat: true,
-                        });
-                      });
-                    }}
+                    variant="contained"
+                    onClick={() => handleViewProfile(o)}
                   >
-                    {isNearby ? "View Profile" : "Check Distance"}
-                  </Button>
-
-                  <Button
-                    onClick={() => {
-                      if (!myProfileSlug) {
-                        alert("Set your profile first.");
-                        return;
-                      }
-
-                      getProximitySocket().emit("shareProfile", {
-                        toDeviceId: o.deviceId,
-                        profileSlug: myProfileSlug,
-                      });
-                    }}
-                  >
-                    Share
+                    View Profile
                   </Button>
                 </CardActions>
               </Card>
@@ -320,26 +212,8 @@ export function NearbyPage() {
           })}
         </Stack>
       </Container>
-
-      <Tooltip
-        title={
-          autoOpenEnabled
-            ? "Auto pop-up is ON"
-            : "Enable auto pop-up"
-        }
-      >
-        <Fab
-          color={autoOpenEnabled ? "success" : "default"}
-          onClick={() => setAutoOpenEnabled((v) => !v)}
-          sx={{
-            position: "fixed",
-            bottom: 32,
-            right: 32,
-          }}
-        >
-          <AddIcon />
-        </Fab>
-      </Tooltip>
     </Box>
   );
 }
+
+export default NearbyPage;

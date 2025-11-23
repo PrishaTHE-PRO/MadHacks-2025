@@ -247,7 +247,7 @@ export function PublicProfilePage() {
           )}
 
           {/* Resume */}
-          {profile.resumeUrl && (
+          {profile?.resumeUrl && (
             <>
               <Divider sx={{ my: 3 }} />
               <Typography variant="h6" gutterBottom>
