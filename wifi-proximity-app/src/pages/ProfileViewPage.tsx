@@ -105,10 +105,6 @@ export function ProfileViewPage() {
       setSaved(true);
     }
 
-<<<<<<< HEAD
-=======
-    // Navigate back depending on context
->>>>>>> d5d11c2dee7526654f11d0f9f713f6e714b594e4
     if (backTo === "nearby" && eventCode) {
       navigate(`/nearby/${eventCode}`);
     } else if (backTo === "contacts" && eventCode) {
@@ -139,16 +135,8 @@ export function ProfileViewPage() {
   }
 
   const avatarInitial =
-<<<<<<< HEAD
     (profile.name || profile.firstName || "").trim().charAt(0).toUpperCase() ||
     "U";
-=======
-    (profile.name || profile.firstName || "")
-      .trim()
-      .charAt(0)
-      .toUpperCase() || "U";
-
->>>>>>> d5d11c2dee7526654f11d0f9f713f6e714b594e4
   const gallery = (profile.galleryUrls || []).filter(Boolean);
 
   return (
@@ -161,7 +149,6 @@ export function ProfileViewPage() {
           "radial-gradient(circle at top, rgba(25,118,210,0.13), transparent 60%)",
       }}
     >
-<<<<<<< HEAD
       {/* SIMPLE back button inside the content instead of a fixed floating one */}
       <Container maxWidth="sm" sx={{ py: 2 }}>
         <Button
@@ -171,10 +158,6 @@ export function ProfileViewPage() {
         >
           Back
         </Button>
-=======
-      {/* Back arrow with animated scoot + swipe-left on tap */}
-      <BackButton onClick={handleBack} />
->>>>>>> d5d11c2dee7526654f11d0f9f713f6e714b594e4
 
         <Paper
           elevation={4}
