@@ -38,9 +38,28 @@ interface NearbyUser {
 const PROXIMITY_LATENCY_MS = 50; // ~3 feet over WiFi
 const PROXIMITY_RADIUS_FEET = 3;
 
+const generateDeviceId = () => {
+  const globalCrypto = (globalThis as any)?.crypto;
+  try {
+    if (globalCrypto?.randomUUID) return globalCrypto.randomUUID();
+    if (globalCrypto?.getRandomValues) {
+      const arr = new Uint32Array(4);
+      globalCrypto.getRandomValues(arr);
+      return Array.from(arr)
+        .map((n) => n.toString(16).padStart(8, "0"))
+        .join("-");
+    }
+  } catch (err) {
+    console.warn("Unable to use crypto APIs for deviceId, using fallback", err);
+  }
+  // Weak fallback, but fine for client identifiers
+  return `${Math.random().toString(36).slice(2)}-${Date.now()}`;
+};
+
 export function NearbyPage() {
   const { eventCode } = useParams();
   const { user } = useContext(AuthContext);
+<<<<<<< HEAD
   const [deviceId] = useState(() => {
     try {
       if (
@@ -63,6 +82,9 @@ export function NearbyPage() {
     );
   });
 
+=======
+  const [deviceId] = useState(() => generateDeviceId());
+>>>>>>> 1f12d29a6d6017bd0782ca049a5f3ba3b85dfa59
   const [myProfileSlug, setMyProfileSlug] = useState<string>("");
   const [others, setOthers] = useState<NearbyUser[]>([]);
   const [measuring, setMeasuring] = useState(false);
