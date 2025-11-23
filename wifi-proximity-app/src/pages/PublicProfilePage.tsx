@@ -23,7 +23,6 @@ import LinkedInIcon from "@mui/icons-material/LinkedIn";
 import LanguageIcon from "@mui/icons-material/Language";
 import PictureAsPdfIcon from "@mui/icons-material/PictureAsPdf";
 import PhotoLibraryIcon from "@mui/icons-material/PhotoLibrary";
-import MovieIcon from "@mui/icons-material/Movie";
 import { motion } from "framer-motion";
 
 interface Profile {
