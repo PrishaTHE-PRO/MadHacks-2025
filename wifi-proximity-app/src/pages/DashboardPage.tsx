@@ -46,7 +46,6 @@ import {
 import { motion } from "framer-motion";
 import LogoutIcon from '@mui/icons-material/Logout';
 import { logout } from "../services/authService";
-import { BackButton } from "../components/BackButton";
 import { ThemeSwitch } from "../components/ThemeSwitch";
 
 const MotionIconButton = motion(IconButton);
@@ -218,9 +217,9 @@ export function DashboardPage() {
       computedDate = `${yyyy}-${mm}-${dd}`;
     }
 
-  const date = computedDate || "TBD";
-  // timeToSave will be stored in Firestore and shown in UI; if empty, use "TBD"
-  const timeToSave = time || "TBD";
+    const date = computedDate || "TBD";
+    // timeToSave will be stored in Firestore and shown in UI; if empty, use "TBD"
+    const timeToSave = time || "TBD";
 
     try {
       let imageUrl: string | undefined;

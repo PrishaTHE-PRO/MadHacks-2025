@@ -25,7 +25,7 @@ function haversineDistance(lat1: number, lon1: number, lat2: number, lon2: numbe
   const a =
     Math.sin(dLat / 2) * Math.sin(dLat / 2) +
     Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) *
-      Math.sin(dLon / 2) * Math.sin(dLon / 2);
+    Math.sin(dLon / 2) * Math.sin(dLon / 2);
   const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
   return R * c;
 }
@@ -62,9 +62,8 @@ export function MapEventsPage() {
     map.addControl(new mapboxgl.NavigationControl(), "top-right");
 
     // attach error handler and load handler
-    map.on("error", (e) => {
-      // eslint-disable-next-line no-console
-      console.error("Mapbox error event:", e.error || e);
+    map.on("error", (e: mapboxgl.ErrorEvent) => {
+      console.error("Mapbox error:", e.error);
     });
 
     map.on("load", () => {
@@ -82,17 +81,17 @@ export function MapEventsPage() {
     try {
       // @ts-ignore
       (window as any).__MAD_MAP = map;
-    } catch {}
+    } catch { }
 
     return () => {
       try {
         map.remove();
-      } catch {}
+      } catch { }
       mapRef.current = null;
       try {
         // @ts-ignore
         delete (window as any).__MAD_MAP;
-      } catch {}
+      } catch { }
     };
   }, []);
 
@@ -108,7 +107,7 @@ export function MapEventsPage() {
           mapRef.current.setCenter([lng, lat]);
         }
       },
-      () => {},
+      () => { },
       { enableHighAccuracy: true }
     );
   }, []);
@@ -128,7 +127,7 @@ export function MapEventsPage() {
         if (map.getSource("search-radius-src")) {
           map.removeSource("search-radius-src");
         }
-      } catch {}
+      } catch { }
 
       // create a circle polygon (approx) for display
       const points: [number, number][] = [];
@@ -160,7 +159,7 @@ export function MapEventsPage() {
           const src = map.getSource("search-radius-src") as mapboxgl.GeoJSONSource;
           try {
             src.setData({ type: "Feature", properties: {}, geometry: { type: "Polygon", coordinates: [points] } });
-          } catch {}
+          } catch { }
         }
 
         if (!map.getLayer("search-radius")) {
@@ -182,7 +181,7 @@ export function MapEventsPage() {
         userMarker = new mapboxgl.Marker({ color: "#1976d2" })
           .setLngLat([lng, lat])
           .addTo(map);
-      } catch {}
+      } catch { }
 
       // fetch events and filter client-side
       void (async () => {
@@ -203,7 +202,7 @@ export function MapEventsPage() {
               existing.remove();
               (ev as any)._marker = undefined;
             }
-          } catch {}
+          } catch { }
 
           (ev as any)._marker = new mapboxgl.Marker({ color: computeColorForEvent(ev) })
             .setLngLat([ev.lng!, ev.lat!])
@@ -216,10 +215,10 @@ export function MapEventsPage() {
         try {
           if (map.getLayer("search-radius")) map.removeLayer("search-radius");
           if (map.getSource("search-radius-src")) map.removeSource("search-radius-src");
-        } catch {}
+        } catch { }
         try {
           if (userMarker) userMarker.remove();
-        } catch {}
+        } catch { }
       };
     };
 
@@ -237,7 +236,7 @@ export function MapEventsPage() {
       try {
         if (map.getLayer("search-radius")) map.removeLayer("search-radius");
         if (map.getSource("search-radius-src")) map.removeSource("search-radius-src");
-      } catch {}
+      } catch { }
     };
   }, [userLoc, radiusMeters]);
 
@@ -374,7 +373,7 @@ export function MapEventsPage() {
               </Stack>
               <Stack direction="row" spacing={2} alignItems="center">
                 <Button size="large" variant="contained" onClick={() => handleAttend(ev)} sx={{ minWidth: 120 }}>Attend</Button>
-                <Button size="large" onClick={async () => { const members = await getMembersForEvent(ev.code); window.alert(`${members.filter(m=>m.role==='recruiter').length} recruiters attending.`); }} sx={{ minWidth: 160 }}>See recruiters</Button>
+                <Button size="large" onClick={async () => { const members = await getMembersForEvent(ev.code); window.alert(`${members.filter(m => m.role === 'recruiter').length} recruiters attending.`); }} sx={{ minWidth: 160 }}>See recruiters</Button>
               </Stack>
             </Paper>
           ))}
