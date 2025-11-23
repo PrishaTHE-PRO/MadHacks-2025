@@ -73,6 +73,10 @@ export async function createEventInDb(args: {
     createdByUid: string;
     role: Role;
     imageUrl?: string;
+    // optional geolocation + start timestamp
+    lat?: number | null;
+    lng?: number | null;
+    startTimestamp?: number | null;
 }): Promise<void> {
     const {
         code,
@@ -83,6 +87,9 @@ export async function createEventInDb(args: {
         createdByUid,
         role,
         imageUrl,
+        lat,
+        lng,
+        startTimestamp,
     } = args;
 
     const eventRef = doc(db, EVENTS_COLLECTION, code);
@@ -100,6 +107,9 @@ export async function createEventInDb(args: {
         location,
         createdByUid,
         imageUrl: imageUrl || null,
+        lat: lat ?? null,
+        lng: lng ?? null,
+        startTimestamp: startTimestamp ?? null,
         createdAt: serverTimestamp(),
     });
 

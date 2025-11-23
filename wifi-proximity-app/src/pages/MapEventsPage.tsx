@@ -10,8 +10,8 @@ import {
   Button,
   Slider,
   Chip,
-  Avatar,
 } from "@mui/material";
+import { BackButton } from "../components/BackButton";
 import { getEventsNearby, joinEventInDb, getMembersForEvent } from "../services/eventService";
 import { useContext } from "react";
 import { AuthContext } from "../context/AuthContext";
@@ -131,17 +131,21 @@ export function MapEventsPage() {
 
       setNearbyEvents(filtered);
 
-      // render markers
-      // remove previous markers (we'll keep refs on map as custom layers are trickier)
-      // (simple approach) add markers and attach to event object for cleanup next run
-      filtered.forEach((ev) => {
-        if (!ev._marker) {
-          ev._marker = new mapboxgl.Marker({ color: computeColorForEvent(ev) })
+        // render markers: remove existing and re-create so color reflects most recent start time
+        filtered.forEach((ev) => {
+          try {
+            const existing = (ev as any)._marker as mapboxgl.Marker | undefined;
+            if (existing) {
+              existing.remove();
+              (ev as any)._marker = undefined;
+            }
+          } catch {}
+
+          (ev as any)._marker = new mapboxgl.Marker({ color: computeColorForEvent(ev) })
             .setLngLat([ev.lng, ev.lat])
-            .setPopup(new mapboxgl.Popup({ offset: 12 }).setHTML(`<strong>${ev.name}</strong><br/>${ev.date} ${ev.time}`))
+            .setPopup(new mapboxgl.Popup({ offset: 12 }).setHTML(`<strong>${ev.name}</strong><br/>${ev.date} ${formatTime(ev.time)}`))
             .addTo(map);
-        }
-      });
+        });
     })();
 
     return () => {
@@ -157,14 +161,41 @@ export function MapEventsPage() {
 
   function computeColorForEvent(ev: any) {
     // color code by time-left until start: green soon -> red far or already started
-    if (!ev.startTimestamp) return "#1976d2";
+    // normalize startTimestamp which might be a Firestore Timestamp object
+    let ts: number | undefined | null = ev.startTimestamp;
+    if (ts && typeof ts === "object" && typeof (ts as any).toMillis === "function") {
+      ts = (ts as any).toMillis();
+    }
+
+    // If we don't have a timestamp, try to compute from date+time fields (if present)
+    if (!ts) {
+      if (ev.date && ev.time && ev.time !== "TBD") {
+        const dt = new Date(`${ev.date}T${ev.time}`);
+        if (!isNaN(dt.getTime())) ts = dt.getTime();
+      }
+    }
+
+    if (!ts) return "#1976d2"; // default (no start time)
+
     const now = Date.now();
-    const diff = ev.startTimestamp - now; // ms
+    const diff = ts - now; // ms
     if (diff <= 0) return "#9e9e9e"; // started
     const hours = diff / (1000 * 60 * 60);
     if (hours <= 1) return "#2e7d32"; // green
     if (hours <= 6) return "#f57f17"; // amber
     return "#c62828"; // red (far in future)
+  }
+
+  function formatTime(t: string) {
+    if (!t || t === "TBD") return "TBD";
+    const m = String(t).match(/^(\d{1,2}):(\d{2})$/);
+    if (!m) return t;
+    let hh = Number(m[1]);
+    const mm = m[2];
+    const period = hh >= 12 ? "PM" : "AM";
+    hh = hh % 12;
+    if (hh === 0) hh = 12;
+    return `${hh}:${mm} ${period}`;
   }
 
   async function handleAttend(ev: any) {
@@ -181,6 +212,7 @@ export function MapEventsPage() {
 
   return (
     <Box sx={{ minHeight: "100vh", pt: 8, bgcolor: "background.default" }}>
+      <BackButton />
       <Container maxWidth="lg">
         <Stack direction="row" spacing={2} alignItems="center" sx={{ mb: 2 }}>
           <Typography variant="h5">Search nearby events</Typography>
@@ -188,6 +220,52 @@ export function MapEventsPage() {
         </Stack>
 
         <Paper sx={{ height: 520, position: "relative", overflow: "hidden" }}>
+          {/* Legend overlay */}
+          <Box
+            sx={{
+              position: "absolute",
+              top: 12,
+              right: 12,
+              zIndex: 2,
+              bgcolor: "background.paper",
+              boxShadow: 3,
+              borderRadius: 1,
+              p: 1,
+              minWidth: 160,
+              pointerEvents: "auto",
+            }}
+          >
+            <Typography variant="caption" sx={{ fontWeight: 700, display: "block", mb: 0.5 }}>
+              Legend
+            </Typography>
+            <Stack spacing={0.5}>
+              <Stack direction="row" spacing={1} alignItems="center">
+                <Box sx={{ width: 12, height: 12, bgcolor: "#9e9e9e", borderRadius: 0.5 }} />
+                <Typography variant="caption">Started</Typography>
+              </Stack>
+
+              <Stack direction="row" spacing={1} alignItems="center">
+                <Box sx={{ width: 12, height: 12, bgcolor: "#2e7d32", borderRadius: 0.5 }} />
+                <Typography variant="caption">Starts within 1 hour</Typography>
+              </Stack>
+
+              <Stack direction="row" spacing={1} alignItems="center">
+                <Box sx={{ width: 12, height: 12, bgcolor: "#f57f17", borderRadius: 0.5 }} />
+                <Typography variant="caption">Starts within 6 hours</Typography>
+              </Stack>
+
+              <Stack direction="row" spacing={1} alignItems="center">
+                <Box sx={{ width: 12, height: 12, bgcolor: "#c62828", borderRadius: 0.5 }} />
+                <Typography variant="caption">Starts in &gt; 6 hours</Typography>
+              </Stack>
+
+              <Stack direction="row" spacing={1} alignItems="center">
+                <Box sx={{ width: 12, height: 12, bgcolor: "#1976d2", borderRadius: 0.5 }} />
+                <Typography variant="caption">No start time listed</Typography>
+              </Stack>
+            </Stack>
+          </Box>
+
           <div ref={mapContainer} style={{ height: "100%" }} />
         </Paper>
 
