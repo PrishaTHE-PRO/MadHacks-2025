@@ -231,9 +231,7 @@ export function LandingPage() {
                 textAlign: "center",
               }}
             >
-              Connect with people nearby at events using shared WiFi and
-              real‑time profiles. No awkward introductions, just instant
-              context.
+              Your Network, In Motion.
             </MotionTypography>
 
             <Stack
