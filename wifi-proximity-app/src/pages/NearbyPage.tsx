@@ -253,7 +253,21 @@ export function NearbyPage() {
         bgcolor: "background.default",
       }}
     >
-      <BackButton onClick={() => navigate(`/events/${eventCode}`)} />
+      <BackButton
+        onClick={() => {
+          try {
+            // Prefer going back in history to preserve user's flow
+            if (window.history && window.history.length > 1) {
+              navigate(-1);
+            } else {
+              // Fallback: replace so we don't push a duplicate entry and cause a loop
+              navigate(`/events/${eventCode}`, { replace: true });
+            }
+          } catch {
+            navigate(`/events/${eventCode}`, { replace: true });
+          }
+        }}
+      />
 
       <Container
         maxWidth="sm"
