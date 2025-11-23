@@ -16,10 +16,28 @@ import { EventContactsPage } from "./pages/EventContactsPage";
 import { Navbar } from "./components/Navbar";
 
 function RequireAuth({ children }: { children: ReactElement }) {
-  const { user } = useContext(AuthContext);
+  const { user, loading } = useContext(AuthContext);
+
+  if (loading) {
+    // You can style this however; using MUI later is fine too.
+    return (
+      <div
+        style={{
+          minHeight: "100vh",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+        }}
+      >
+        <p>Loading...</p>
+      </div>
+    );
+  }
+
   if (!user) {
     return <Navigate to="/login" replace />;
   }
+
   return children;
 }
 

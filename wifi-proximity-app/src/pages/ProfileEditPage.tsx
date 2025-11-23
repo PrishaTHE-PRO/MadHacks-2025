@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect, useContext } from "react";
 import {
   Box,
   Container,
@@ -8,15 +8,67 @@ import {
   Typography,
   Stack,
 } from "@mui/material";
+import { useNavigate } from "react-router-dom";
+import { AuthContext } from "../context/AuthContext";
+import { saveProfile, getProfileByUid } from "../services/profileService";
 
 export function ProfileEditPage() {
   const [name, setName] = useState("");
   const [bio, setBio] = useState("");
   const [interests, setInterests] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+  const { user } = useContext(AuthContext);
+  const navigate = useNavigate();
 
-  const handleSave = (e: React.FormEvent) => {
+  useEffect(() => {
+    if (!user) return;
+    let mounted = true;
+    (async () => {
+      try {
+        const p = await getProfileByUid(user.uid);
+        if (!mounted || !p) return;
+        setName(p.name || "");
+        setBio(p.bio || "");
+        if (Array.isArray(p.interests)) setInterests(p.interests.join(", "));
+        else setInterests(p.interests || "");
+      } catch (err) {
+        console.error("Failed to load profile:", err);
+      }
+    })();
+    return () => {
+      mounted = false;
+    };
+  }, [user]);
+
+  const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
-    // TODO: Implement save profile logic (to Firestore)
+    setError("");
+    if (!user) {
+      setError("You must be signed in to save your profile.");
+      return;
+    }
+    setLoading(true);
+    try {
+      const interestsArr = interests
+        .split(",")
+        .map((s) => s.trim())
+        .filter(Boolean);
+
+      await saveProfile(user.uid, {
+        name,
+        bio,
+        interests: interestsArr,
+      });
+
+      // navigate to My Profile on success
+      navigate("/profile/me");
+    } catch (err) {
+      console.error(err);
+      setError("Failed to save profile. Check console for details.");
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -26,6 +78,7 @@ export function ProfileEditPage() {
         pt: 8,
         display: "flex",
         alignItems: "center",
+        justifyContent: "center",
       }}
     >
       <Container maxWidth="sm">
@@ -41,6 +94,7 @@ export function ProfileEditPage() {
                 fullWidth
                 value={name}
                 onChange={(e) => setName(e.target.value)}
+                disabled={loading}
               />
               <TextField
                 label="Bio"
@@ -49,16 +103,24 @@ export function ProfileEditPage() {
                 minRows={3}
                 value={bio}
                 onChange={(e) => setBio(e.target.value)}
+                disabled={loading}
               />
               <TextField
                 label="Interests (comma separated)"
                 fullWidth
                 value={interests}
                 onChange={(e) => setInterests(e.target.value)}
+                disabled={loading}
               />
 
-              <Button type="submit" variant="contained">
-                Save
+              {error && (
+                <Typography color="error" variant="body2">
+                  {error}
+                </Typography>
+              )}
+
+              <Button type="submit" variant="contained" disabled={loading}>
+                {loading ? "Saving..." : "Save"}
               </Button>
             </Stack>
           </Box>

@@ -25,6 +25,7 @@ export function DashboardPage() {
         pt: 8,
         display: "flex",
         alignItems: "center",
+        px: 2,
       }}
     >
       <Container maxWidth="md">
