@@ -10,6 +10,7 @@ import {
   Card,
   CardContent,
   CardActions,
+  IconButton,
   Fab,
   Dialog,
   DialogTitle,
@@ -33,6 +34,7 @@ import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { useTheme } from "@mui/material/styles";
 
 import AddIcon from "@mui/icons-material/Add";
+import EditIcon from "@mui/icons-material/Edit";
 import CalendarMonthIcon from "@mui/icons-material/CalendarMonth";
 import AccessTimeIcon from "@mui/icons-material/AccessTime";
 import PlaceIcon from "@mui/icons-material/Place";
@@ -40,6 +42,7 @@ import PlaceIcon from "@mui/icons-material/Place";
 import { fadeUp, popIn, float } from "../styles/animations";
 import {
   createEventInDb,
+  updateEventInDb,
   joinEventInDb,
   getEventsForUser,
   deleteEventForUser,
@@ -119,6 +122,15 @@ export function DashboardPage() {
   const [newEventImageFile, setNewEventImageFile] = useState<File | null>(null);
   const [newEventIsPrivate, setNewEventIsPrivate] = useState<boolean>(false);
   const [createError, setCreateError] = useState("");
+  // Edit dialog state
+  const [editOpen, setEditOpen] = useState(false);
+  const [editCode, setEditCode] = useState<string | null>(null);
+  const [editName, setEditName] = useState("");
+  const [editDate, setEditDate] = useState("");
+  const [editTime, setEditTime] = useState("");
+  const [editLocation, setEditLocation] = useState("");
+  const [editIsPrivate, setEditIsPrivate] = useState<boolean>(false);
+  const [editError, setEditError] = useState("");
 
   // Load events for user
   useEffect(() => {
@@ -323,6 +335,34 @@ export function DashboardPage() {
                   }}
                 />
 
+                {/* Edit icon in top-right for event creators */}
+                {user && event.createdByUid === user.uid && (
+                  <IconButton
+                    size="small"
+                    onClick={() => {
+                      setEditCode(event.code);
+                      setEditName(event.name || "");
+                      setEditDate(event.date || "");
+                      setEditTime(event.time || "");
+                      setEditLocation(event.location || "");
+                      setEditIsPrivate((event as any).isPrivate === true);
+                      setEditError("");
+                      setEditOpen(true);
+                    }}
+                    sx={{
+                      position: "absolute",
+                      top: 8,
+                      right: 8,
+                      zIndex: 30,
+                      bgcolor: "rgba(0,0,0,0.4)",
+                      color: "common.white",
+                      '&:hover': { bgcolor: 'rgba(0,0,0,0.55)' },
+                    }}
+                  >
+                    <EditIcon />
+                  </IconButton>
+                )}
+
                 <CardContent sx={{ position: "relative" }}>
                   <Typography variant="h6" gutterBottom>
                     <b>{event.name}</b>
@@ -350,41 +390,25 @@ export function DashboardPage() {
 
                     {event.role && (
                       <Typography variant="body2" sx={{ opacity: 0.9 }}>
-                        Your role:{" "}
-                        {event.role === "recruiter" ? "Recruiter" : "Attendee"}
+                        Your role: {event.role === "recruiter" ? "Recruiter" : "Attendee"}
                       </Typography>
                     )}
                   </Stack>
                 </CardContent>
 
-                <CardActions sx={{ position: "relative" }}>
-                  <Button
-                    size="small"
-                    component={Link}
-                    to={`/events/${event.code}`}
-                    sx={{ color: "common.white" }}
-                  >
+                <CardActions>
+                  <Button size="small" component={Link} to={`/events/${event.code}`} sx={{ color: "common.white" }}>
                     View Contacts
                   </Button>
 
                   {event.joined && (
-                    <Button
-                      size="small"
-                      component={Link}
-                      to={`/nearby/${event.code}`}
-                      sx={{ color: "common.white" }}
-                    >
+                    <Button size="small" component={Link} to={`/nearby/${event.code}`} sx={{ color: "common.white" }}>
                       Find Nearby
                     </Button>
                   )}
 
                   {user && event.createdByUid === user.uid && (
-                    <Button
-                      size="small"
-                      color="error"
-                      sx={{ ml: "auto", color: "error.light" }}
-                      onClick={() => handleDeleteEvent(event.code)}
-                    >
+                    <Button size="small" color="error" sx={{ ml: 1, color: "error.light" }} onClick={() => handleDeleteEvent(event.code)}>
                       Delete
                     </Button>
                   )}
@@ -760,6 +784,58 @@ export function DashboardPage() {
           <Button onClick={handleCloseCreate}>Close</Button>
           <Button variant="contained" onClick={handleCreateEvent}>
             Create
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* EDIT DIALOG */}
+      <Dialog open={editOpen} onClose={() => setEditOpen(false)} maxWidth="md" fullWidth>
+        <DialogTitle>Edit Event</DialogTitle>
+        <DialogContent>
+          <Stack spacing={2} sx={{ mt: 1 }}>
+            <TextField label="Event Name" fullWidth variant="outlined" value={editName} onChange={(e) => setEditName(e.target.value)} />
+            <TextField label="Date (YYYY-MM-DD)" fullWidth variant="outlined" value={editDate} onChange={(e) => setEditDate(e.target.value)} />
+            <TextField label="Time (HH:MM)" fullWidth variant="outlined" value={editTime} onChange={(e) => setEditTime(e.target.value)} />
+            <TextField label="Location" fullWidth variant="outlined" value={editLocation} onChange={(e) => setEditLocation(e.target.value)} />
+
+            <FormControl>
+              <FormLabel>Visibility</FormLabel>
+              <RadioGroup row value={editIsPrivate ? "private" : "public"} onChange={(e) => setEditIsPrivate(e.target.value === "private")}>
+                <FormControlLabel value="public" control={<Radio />} label="Public (shows on map)" />
+                <FormControlLabel value="private" control={<Radio />} label="Private (requires code)" />
+              </RadioGroup>
+            </FormControl>
+
+            {editError && <Typography color="error">{editError}</Typography>}
+          </Stack>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setEditOpen(false)}>Cancel</Button>
+          <Button
+            variant="contained"
+            onClick={async () => {
+              if (!editCode) return setEditError("Missing event code.");
+              if (!editName.trim()) return setEditError("Event name is required.");
+              try {
+                await updateEventInDb(editCode, {
+                  name: editName.trim(),
+                  date: editDate || "TBD",
+                  time: editTime || "TBD",
+                  location: editLocation || "TBD",
+                  isPrivate: editIsPrivate,
+                });
+
+                // update local list
+                setEvents((prev) => prev.map((ev) => (ev.code === editCode ? { ...ev, name: editName.trim(), date: editDate || "TBD", time: editTime || "TBD", location: editLocation || "TBD" } : ev)));
+
+                setEditOpen(false);
+              } catch (err: any) {
+                console.error(err);
+                setEditError(err?.message || "Failed to update event.");
+              }
+            }}
+          >
+            Save
           </Button>
         </DialogActions>
       </Dialog>

@@ -353,3 +353,30 @@ export async function getEventByCode(
 
     return snap.data() as FirestoreEvent;
 }
+
+/**
+ * Update an existing event's mutable fields. Only fields provided in `updateData` will be changed.
+ */
+export async function updateEventInDb(
+    eventCode: string,
+    updateData: Partial<{
+        name: string;
+        date: string;
+        time: string;
+        location: string;
+        imageUrl?: string | null;
+        lat?: number | null;
+        lng?: number | null;
+        startTimestamp?: number | null;
+        isPrivate?: boolean;
+    }>
+) {
+    const eventRef = doc(db, EVENTS_COLLECTION, eventCode);
+    // ensure event exists
+    const snap = await getDoc(eventRef);
+    if (!snap.exists()) throw new Error("Event does not exist.");
+
+    const toSet: any = { ...updateData, updatedAt: serverTimestamp() };
+
+    await setDoc(eventRef, toSet, { merge: true });
+}
