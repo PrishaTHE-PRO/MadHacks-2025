@@ -32,20 +32,29 @@ export async function saveInteraction(params: {
     const interactionId = `${ownerUserId}_${eventCode}_${otherUserId}`;
     const ref = doc(db, "interactions", interactionId);
 
-    await setDoc(
-        ref,
-        {
-            ownerUserId,
-            otherUserId,
-            eventCode,
-            // if note is undefined, store empty string so EventContactsPage sees ""
-            note: note ?? "",
-            favorite: false,
-            createdAt: serverTimestamp(),
-            updatedAt: serverTimestamp(),
-        },
-        { merge: true }
-    );
+    // 🔍 Check if this interaction already exists
+    const snap = await getDoc(ref);
+    const isNew = !snap.exists();
+
+    const data: any = {
+        ownerUserId,
+        otherUserId,
+        eventCode,
+        updatedAt: serverTimestamp(),
+    };
+
+    // Only set createdAt and default note when it's a brand-new interaction
+    if (isNew) {
+        data.createdAt = serverTimestamp();
+        if (note !== undefined) {
+            data.note = note;          // e.g. "Met via proximity detection"
+        } else {
+            data.note = "";            // or omit this line if you prefer "no note" initially
+        }
+        data.favorite = false;
+    }
+
+    await setDoc(ref, data, { merge: true });
 }
 
 /**
