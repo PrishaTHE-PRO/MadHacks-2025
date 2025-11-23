@@ -140,8 +140,7 @@ export function NearbyPage() {
 
       await saveInteraction({
         ownerUserId: user.uid,
-        otherUserId: otherUser.userId,
-        otherUserSlug: otherUser.profileSlug,
+        otherUserId: otherUser.profileSlug,
         eventCode: eventCode,
         note: `Auto-detected via WiFi proximity (${latency}ms latency)`,
       });
