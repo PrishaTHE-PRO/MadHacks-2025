@@ -9,6 +9,7 @@ import {
   Stack,
   Slider,
   Chip,
+  Button,
 } from "@mui/material";
 import { BackButton } from "../components/BackButton";
 import { getEventsNearby, joinEventInDb } from "../services/eventService";
@@ -50,6 +51,10 @@ export function MapEventsPage() {
   const [nearbyEvents, setNearbyEvents] = useState<any[]>([]);
   const { user } = useContext(AuthContext);
   const navigate = useNavigate();
+  const [mapAvailable, setMapAvailable] = useState<boolean>(() => {
+    const t = import.meta.env.VITE_MAPBOX_TOKEN as string | undefined;
+    return !!t;
+  });
 
   // set token from env (Vite injects import.meta.env at build/dev time)
   mapboxgl.accessToken = import.meta.env.VITE_MAPBOX_TOKEN as string;
@@ -60,8 +65,11 @@ export function MapEventsPage() {
 
     const token = import.meta.env.VITE_MAPBOX_TOKEN as string | undefined;
     if (!token) {
+      // no token -> disable map and bail out (we still populate list view)
       // eslint-disable-next-line no-console
-      console.error("Mapbox token is missing (VITE_MAPBOX_TOKEN).");
+      console.warn("Mapbox token is missing (VITE_MAPBOX_TOKEN). Falling back to list view.");
+      setMapAvailable(false);
+      return;
     }
 
     const map = new mapboxgl.Map({
@@ -77,6 +85,8 @@ export function MapEventsPage() {
     // attach error handler and load handler
     map.on("error", (e: mapboxgl.ErrorEvent) => {
       console.error("Mapbox error:", e.error);
+      // if map emits an error early, fall back to list view
+      setMapAvailable(false);
     });
 
     map.on("load", () => {
@@ -107,6 +117,154 @@ export function MapEventsPage() {
       } catch { }
     };
   }, []);
+
+  // Fetch and filter events independent of the map so we can show a list view when maps aren't available.
+  useEffect(() => {
+    if (!userLoc) return;
+
+    let mounted = true;
+
+    const token = import.meta.env.VITE_MAPBOX_TOKEN as string | undefined;
+    const geocode = async (location: string) => {
+      if (!token || !location) return null;
+      try {
+        const q = encodeURIComponent(location);
+        const res = await fetch(
+          `https://api.mapbox.com/geocoding/v5/mapbox.places/${q}.json?access_token=${token}&limit=1`
+        );
+        if (!res.ok) return null;
+        const data = await res.json();
+        const feat = data?.features?.[0];
+        if (feat && feat.center && feat.center.length >= 2) {
+          return { lng: Number(feat.center[0]), lat: Number(feat.center[1]) };
+        }
+      } catch (e) {
+        // swallow geocode errors; we still show events without coords if needed
+        console.warn("MapEventsPage: geocode failed for", location, e);
+      }
+      return null;
+    };
+
+    void (async () => {
+      try {
+        const events = await getEventsNearby();
+
+        const eventsWithCoords = await Promise.all(
+          events.map(async (ev) => {
+            if (ev.lat != null && ev.lng != null) return ev;
+            if (!ev.location) return ev;
+            const coords = await geocode(ev.location);
+            if (coords) return { ...ev, lat: coords.lat, lng: coords.lng };
+            return ev;
+          })
+        );
+
+        const { lat, lng } = userLoc;
+        const filtered = eventsWithCoords.filter((e) => {
+          if (e.isPrivate) return false; // hide private events from public listings
+          if (e.lat == null || e.lng == null) return false;
+          const d = haversineDistance(lat, lng, e.lat, e.lng);
+          return d <= radiusMeters;
+        });
+
+        if (!mounted) return;
+        setNearbyEvents(filtered);
+      } catch (err) {
+        console.error("MapEventsPage: failed to load nearby events", err);
+      }
+    })();
+
+    return () => {
+      mounted = false;
+    };
+  }, [userLoc, radiusMeters]);
+
+  // When the nearbyEvents list changes, sync markers to the map only if the map is available.
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !mapAvailable) return;
+
+    // remove stale markers
+    const filteredCodes = new Set(nearbyEvents.map((e) => e.code));
+    Object.keys(markersRef.current).forEach((code) => {
+      if (!filteredCodes.has(code)) {
+        try {
+          markersRef.current[code].remove();
+        } catch (remErr) {
+          console.warn("MapEventsPage: failed to remove marker", code, remErr);
+        }
+        delete markersRef.current[code];
+      }
+    });
+
+    // create/update markers
+    nearbyEvents.forEach((ev) => {
+      const code = ev.code as string;
+      try {
+        const latNum = Number(ev.lat);
+        const lngNum = Number(ev.lng);
+        if (Number.isNaN(latNum) || Number.isNaN(lngNum)) return;
+
+        if (markersRef.current[code]) {
+          try {
+            markersRef.current[code].remove();
+          } catch {}
+          delete markersRef.current[code];
+        }
+
+        const popupNode = document.createElement("div");
+        popupNode.style.minWidth = "160px";
+        popupNode.innerHTML = `
+          <div style="font-weight:700;margin-bottom:6px">${escapeHtml(ev.name)}</div>
+          <div style="font-size:12px;color:#444;margin-bottom:6px">${ev.date} ${formatTime(ev.time)}</div>
+          <div style="font-size:12px;color:#444;margin-bottom:8px">${escapeHtml(ev.location || "")}</div>
+          <button id="join-btn-${code}" style="background:#1976d2;color:#fff;border:none;padding:6px 10px;border-radius:6px;cursor:pointer">Join</button>
+        `;
+
+        const marker = new mapboxgl.Marker({ color: computeColorForEvent(ev) })
+          .setLngLat([lngNum, latNum])
+          .setPopup(new mapboxgl.Popup({ offset: 12 }).setDOMContent(popupNode))
+          .addTo(map);
+
+        const btn = popupNode.querySelector(`#join-btn-${code}`) as HTMLButtonElement | null;
+        if (btn) {
+          btn.addEventListener("click", async (e) => {
+            e.preventDefault();
+            if (!user) {
+              navigate("/login");
+              return;
+            }
+            try {
+              await joinEventInDb(code, user.uid, "attendee");
+              navigate(`/nearby/${code}`);
+            } catch (joinErr: any) {
+              console.error("MapEventsPage: failed to join event", joinErr);
+              window.alert(joinErr?.message || "Failed to join event.");
+            }
+          });
+        }
+
+        markersRef.current[code] = marker;
+      } catch (err) {
+        console.error("MapEventsPage: failed to create marker for", ev.code, err);
+      }
+    });
+
+    // fit bounds if we have markers
+    try {
+      const bounds = new mapboxgl.LngLatBounds();
+      if (userLoc) bounds.extend([userLoc.lng, userLoc.lat]);
+      Object.values(markersRef.current).forEach((m) => {
+        try {
+          const ll = m.getLngLat();
+          bounds.extend([ll.lng, ll.lat]);
+        } catch (e) {}
+      });
+      if (!bounds.isEmpty()) map.fitBounds(bounds, { padding: 80, maxZoom: 14, duration: 400 });
+    } catch (e) {
+      /* ignore */
+    }
+  }, [nearbyEvents, mapAvailable, userLoc]);
 
   // get location
   useEffect(() => {
@@ -482,7 +640,52 @@ export function MapEventsPage() {
             </Stack>
           </Box>
 
-          <div ref={mapContainer} style={{ height: "100%" }} />
+          {mapAvailable ? (
+            <div ref={mapContainer} style={{ height: "100%" }} />
+          ) : (
+            <Box sx={{ height: "100%", p: 3, overflow: "auto" }}>
+              <Typography variant="h6" sx={{ mb: 1 }}>
+                Map unavailable — list view
+              </Typography>
+              <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                Maps are currently unavailable for your teammates (Mapbox token or network issue). Below are public events within your selected radius.
+              </Typography>
+
+              <Stack spacing={2}>
+                {nearbyEvents.length === 0 && (
+                  <Typography variant="body2" color="text.secondary">No public events found in this radius.</Typography>
+                )}
+
+                {nearbyEvents.map((ev) => (
+                  <Paper key={ev.code} sx={{ p: 2, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                    <Stack>
+                      <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>{ev.name}</Typography>
+                      <Typography variant="body2" color="text.secondary">{ev.date} {ev.time} — {ev.location}</Typography>
+                    </Stack>
+                    <Stack direction="row" spacing={1} alignItems="center">
+                      <Button
+                        size="small"
+                        variant="outlined"
+                        onClick={() => {
+                          if (!user) return navigate("/login");
+                          void (async () => {
+                            try {
+                              await joinEventInDb(ev.code, user.uid, "attendee");
+                              navigate(`/nearby/${ev.code}`);
+                            } catch (err: any) {
+                              window.alert(err?.message || "Failed to join event.");
+                            }
+                          })();
+                        }}
+                      >
+                        Join
+                      </Button>
+                    </Stack>
+                  </Paper>
+                ))}
+              </Stack>
+            </Box>
+          )}
         </Paper>
 
         <Stack direction={{ xs: "column", sm: "row" }} spacing={3} sx={{ mt: 3 }} alignItems="center">
