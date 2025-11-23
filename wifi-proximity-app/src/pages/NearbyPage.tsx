@@ -40,7 +40,23 @@ const PROXIMITY_RADIUS_FEET = 3;
 export function NearbyPage() {
   const { eventCode } = useParams();
   const { user } = useContext(AuthContext);
-  const [deviceId] = useState(() => crypto.randomUUID());
+  const [deviceId] = useState(() => {
+    try {
+      // prefer modern API, fall back to a simple RFC4122-like generator if missing
+      if (typeof crypto !== "undefined" && typeof (crypto as any).randomUUID === "function") {
+        return (crypto as any).randomUUID();
+      }
+    } catch (err) {
+      console.warn("crypto.randomUUID not available, falling back:", err);
+    }
+
+    // fallback UUID v4 generator (not cryptographically strong but fine for client ids)
+    return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function (c) {
+      const r = (Math.random() * 16) | 0;
+      const v = c === 'x' ? r : (r & 0x3) | 0x8;
+      return v.toString(16);
+    });
+  });
   const [myProfileSlug, setMyProfileSlug] = useState<string>("");
   const [others, setOthers] = useState<NearbyUser[]>([]);
   const [measuring, setMeasuring] = useState(false);
