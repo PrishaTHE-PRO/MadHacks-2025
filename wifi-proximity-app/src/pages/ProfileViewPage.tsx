@@ -61,6 +61,7 @@ export function ProfileViewPage() {
   const [searchParams] = useSearchParams();
   const eventCode = searchParams.get("eventCode");
   const eventName = searchParams.get("eventName");
+  const hidePortfolio = searchParams.get("hidePortfolio") === "1";
   const backTo = searchParams.get("back") || "events";
   const navigate = useNavigate();
   const { user } = useContext(AuthContext);
@@ -284,7 +285,7 @@ export function ProfileViewPage() {
           )}
 
           {/* Resume */}
-          {profile.resumeUrl && (
+          {!hidePortfolio && profile.resumeUrl && (
             <>
               <Divider sx={{ my: 3 }} />
               <Stack direction="row" spacing={1} alignItems="center" mb={1}>
@@ -308,7 +309,7 @@ export function ProfileViewPage() {
           )}
 
           {/* Photo Gallery */}
-          {gallery.length > 0 && (
+          {!hidePortfolio && gallery.length > 0 && (
             <>
               <Divider sx={{ my: 3 }} />
               <Stack direction="row" spacing={1} alignItems="center" mb={1}>
@@ -356,7 +357,7 @@ export function ProfileViewPage() {
           )}
 
           {/* Video Portfolio */}
-          {profile.videoUrl && (
+          {!hidePortfolio && profile.videoUrl && (
             <>
               <Divider sx={{ my: 3 }} />
               <Stack direction="row" spacing={1} alignItems="center" mb={1}>

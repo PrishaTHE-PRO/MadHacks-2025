@@ -172,13 +172,17 @@ export function EventContactsPage() {
                   </Box>
                 </CardContent>
                 <CardActions>
-                  <Button
-                    size="small"
-                    component={Link}
-                    to={`/profile/view/${contact.profile.slug}?eventCode=${eventCode}&back=contacts`}
-                  >
-                    View Profile
-                  </Button>
+                  {(() => {
+                    const isRecruiterContact = contact.profile.isRecruiter; // 👈 or role === "recruiter"
+                    const baseUrl = `/profile/view/${contact.profile.slug}?eventCode=${eventCode}&back=contacts`;
+                    const url = isRecruiterContact ? `${baseUrl}&hidePortfolio=1` : baseUrl;
+
+                    return (
+                      <Button size="small" component={Link} to={url}>
+                        View Profile
+                      </Button>
+                    );
+                  })()}
                 </CardActions>
               </Card>
             ))}
