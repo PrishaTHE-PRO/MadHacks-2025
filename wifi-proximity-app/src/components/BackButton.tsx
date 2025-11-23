@@ -26,14 +26,14 @@ export const BackButton: FC<BackButtonProps> = ({ onClick }) => {
   };
 
   return (
-    <Box
-      sx={{
-        position: "fixed",
-        top: 70,
-        left: 45,
-        zIndex: 2000,
-      }}
-    >
+      <Box
+        sx={{
+          position: "fixed",
+          top: 30,
+          left: 15,
+          zIndex: 2000,
+        }}
+      >
       <MotionIconButton
         onClick={handleClick}
         sx={{
