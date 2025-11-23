@@ -46,7 +46,11 @@ import {
   type FirestoreEvent,
   type Role,
 } from "../services/eventService";
-import { BackButton } from "../components/BackButton";
+import { motion } from "framer-motion";
+import LogoutIcon from '@mui/icons-material/Logout';
+import { logout } from "../services/authService";
+
+const MotionIconButton = motion(IconButton);
 
 type EventItem = {
   code: string;
@@ -479,7 +483,48 @@ export function DashboardPage() {
             : "#f5f5f7",
       }}
     >
-      <BackButton />
+      <Box
+        sx={{
+          position: "fixed",
+          top: 70,
+          left: 45,
+          zIndex: 2000,
+        }}
+      >
+        <MotionIconButton
+          onClick={async () => {
+            try {
+              await logout();
+            } catch (e) {
+              console.error("Logout failed", e);
+            }
+            // navigate back to landing (sign in / register)
+            navigate("/");
+          }}
+          sx={{
+            bgcolor: "rgba(255,255,255,0.95)",
+            color: "text.primary",
+            border: "1px solid rgba(0,0,0,0.06)",
+            boxShadow: 2,
+            "&:hover": { bgcolor: "grey.100" },
+          }}
+          aria-label="Logout"
+          initial={{ opacity: 0, x: -8, scale: 0.9 }}
+          animate={{
+            opacity: 1,
+            x: [0, 4, 0],
+            scale: 1,
+          }}
+          transition={{
+            opacity: { duration: 0.25 },
+            scale: { duration: 0.25 },
+            x: { duration: 1.4, repeat: Infinity, repeatType: "reverse", delay: 0.6 },
+          }}
+          whileTap={{ x: -18, opacity: 0.7, scale: 0.95 }}
+        >
+          <LogoutIcon />
+        </MotionIconButton>
+      </Box>
       <Container maxWidth="lg" sx={{ pt: 10, pb: 6 }}>
         <Stack spacing={4}>
           {/* Header */}
