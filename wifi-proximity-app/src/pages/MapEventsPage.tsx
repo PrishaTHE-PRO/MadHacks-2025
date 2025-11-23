@@ -16,7 +16,6 @@ import { getEventsNearby, joinEventInDb, getMembersForEvent } from "../services/
 import { useContext } from "react";
 import { AuthContext } from "../context/AuthContext";
 
-mapboxgl.accessToken = import.meta.env.VITE_MAPBOX_TOKEN;
 
 function haversineDistance(lat1: number, lon1: number, lat2: number, lon2: number) {
   const toRad = (v: number) => (v * Math.PI) / 180;
@@ -39,15 +38,62 @@ export function MapEventsPage() {
   const [nearbyEvents, setNearbyEvents] = useState<any[]>([]);
   const { user } = useContext(AuthContext);
 
+  // set token from env (Vite injects import.meta.env at build/dev time)
+  mapboxgl.accessToken = import.meta.env.VITE_MAPBOX_TOKEN as string;
+
   useEffect(() => {
-    if (!mapRef.current && mapContainer.current) {
-      mapRef.current = new mapboxgl.Map({
-        container: mapContainer.current,
-        style: "mapbox://styles/mapbox/streets-v11",
-        center: [0, 0],
-        zoom: 12,
-      });
+    if (mapRef.current) return; // already initialized
+    if (!mapContainer.current) return;
+
+    const token = import.meta.env.VITE_MAPBOX_TOKEN as string | undefined;
+    if (!token) {
+      // eslint-disable-next-line no-console
+      console.error("Mapbox token is missing (VITE_MAPBOX_TOKEN).");
     }
+
+    const map = new mapboxgl.Map({
+      container: mapContainer.current,
+      style: "mapbox://styles/mapbox/streets-v11",
+      center: [0, 0],
+      zoom: 12,
+    });
+
+    mapRef.current = map;
+    map.addControl(new mapboxgl.NavigationControl(), "top-right");
+
+    // attach error handler and load handler
+    map.on("error", (e) => {
+      // eslint-disable-next-line no-console
+      console.error("Mapbox error event:", e.error || e);
+    });
+
+    map.on("load", () => {
+      // eslint-disable-next-line no-console
+      console.debug("Mapbox loaded, style loaded:", map.isStyleLoaded && map.isStyleLoaded());
+      try {
+        map.resize();
+      } catch (e) {
+        // eslint-disable-next-line no-console
+        console.warn("map.resize() failed on load:", e);
+      }
+    });
+
+    // expose for interactive debugging (cleanup on unmount)
+    try {
+      // @ts-ignore
+      (window as any).__MAD_MAP = map;
+    } catch {}
+
+    return () => {
+      try {
+        map.remove();
+      } catch {}
+      mapRef.current = null;
+      try {
+        // @ts-ignore
+        delete (window as any).__MAD_MAP;
+      } catch {}
+    };
   }, []);
 
   // get location
@@ -72,65 +118,82 @@ export function MapEventsPage() {
     if (!userLoc || !mapRef.current) return;
 
     const map = mapRef.current;
+    // helper that actually mutates the map (add source/layer/marker)
+    const renderOnStyleReady = () => {
+      // remove old layers if present
+      try {
+        if (map.getLayer("search-radius")) {
+          map.removeLayer("search-radius");
+        }
+        if (map.getSource("search-radius-src")) {
+          map.removeSource("search-radius-src");
+        }
+      } catch {}
 
-    // remove old layers if present
-    try {
-      if (map.getLayer("search-radius")) {
-        map.removeLayer("search-radius");
+      // create a circle polygon (approx) for display
+      const points: [number, number][] = [];
+      const steps = 64;
+      const { lat, lng } = userLoc;
+      for (let i = 0; i < steps; i++) {
+        const theta = (i / steps) * 2 * Math.PI;
+        const dx = (radiusMeters / 111320) * Math.cos(theta); // approx degrees
+        const dy = (radiusMeters / 110540) * Math.sin(theta);
+        points.push([lng + dx, lat + dy]);
       }
-      if (map.getSource("search-radius-src")) {
-        map.removeSource("search-radius-src");
+
+      // add source/layer safely (only when style is loaded)
+      try {
+        if (!map.getSource("search-radius-src")) {
+          map.addSource("search-radius-src", {
+            type: "geojson",
+            data: {
+              type: "Feature",
+              properties: {},
+              geometry: {
+                type: "Polygon",
+                coordinates: [points],
+              },
+            },
+          });
+        } else {
+          // update data if source already exists
+          const src = map.getSource("search-radius-src") as mapboxgl.GeoJSONSource;
+          try {
+            src.setData({ type: "Feature", properties: {}, geometry: { type: "Polygon", coordinates: [points] } });
+          } catch {}
+        }
+
+        if (!map.getLayer("search-radius")) {
+          map.addLayer({
+            id: "search-radius",
+            type: "fill",
+            source: "search-radius-src",
+            paint: { "fill-color": "#5b9bd5", "fill-opacity": 0.12 },
+          });
+        }
+      } catch (err) {
+        // If the style isn't done loading this will throw; ignore — we attach on 'load' below
+        // console.warn("Failed to add source/layer now, will retry on style load", err);
       }
-    } catch {}
 
-    // create a circle polygon (approx) for display
-    const points: [number, number][] = [];
-    const steps = 64;
-    const { lat, lng } = userLoc;
-    for (let i = 0; i < steps; i++) {
-      const theta = (i / steps) * 2 * Math.PI;
-      const dx = (radiusMeters / 111320) * Math.cos(theta); // approx degrees
-      const dy = (radiusMeters / 110540) * Math.sin(theta);
-      points.push([lng + dx, lat + dy]);
-    }
+      // add or update user marker
+      let userMarker: mapboxgl.Marker | undefined;
+      try {
+        userMarker = new mapboxgl.Marker({ color: "#1976d2" })
+          .setLngLat([lng, lat])
+          .addTo(map);
+      } catch {}
 
-    map.addSource("search-radius-src", {
-      type: "geojson",
-      data: {
-        type: "Feature",
-        properties: {},
-        geometry: {
-          type: "Polygon",
-          coordinates: [points],
-        },
-      },
-    });
+      // fetch events and filter client-side
+      void (async () => {
+        const events = await getEventsNearby();
+        const filtered = events.filter((e) => {
+          if (e.lat == null || e.lng == null) return false;
+          const d = haversineDistance(lat, lng, e.lat, e.lng);
+          return d <= radiusMeters;
+        });
 
-    map.addLayer({
-      id: "search-radius",
-      type: "fill",
-      source: "search-radius-src",
-      paint: { "fill-color": "#5b9bd5", "fill-opacity": 0.12 },
-    });
-
-    // add or update user marker
-    let userMarker: mapboxgl.Marker | undefined;
-    try {
-      userMarker = new mapboxgl.Marker({ color: "#1976d2" })
-        .setLngLat([lng, lat])
-        .addTo(map);
-    } catch {}
-
-    // fetch events and filter client-side
-    void (async () => {
-      const events = await getEventsNearby();
-      const filtered = events.filter((e) => {
-        if (e.lat == null || e.lng == null) return false;
-        const d = haversineDistance(lat, lng, e.lat, e.lng);
-        return d <= radiusMeters;
-      });
-
-      setNearbyEvents(filtered);
+        setNearbyEvents(filtered);
 
         // render markers: remove existing and re-create so color reflects most recent start time
         filtered.forEach((ev) => {
@@ -147,15 +210,33 @@ export function MapEventsPage() {
             .setPopup(new mapboxgl.Popup({ offset: 12 }).setHTML(`<strong>${ev.name}</strong><br/>${ev.date} ${formatTime(ev.time)}`))
             .addTo(map);
         });
-    })();
+      })();
 
+      return () => {
+        try {
+          if (map.getLayer("search-radius")) map.removeLayer("search-radius");
+          if (map.getSource("search-radius-src")) map.removeSource("search-radius-src");
+        } catch {}
+        try {
+          if (userMarker) userMarker.remove();
+        } catch {}
+      };
+    };
+
+    // If the style is already loaded, render immediately. Otherwise wait for 'load'.
+    if (map.isStyleLoaded && map.isStyleLoaded()) {
+      // call immediately
+      renderOnStyleReady();
+    } else {
+      const onceHandler = () => renderOnStyleReady();
+      map.once("load", onceHandler);
+    }
+
+    // outer cleanup: remove any radius layers/sources if present
     return () => {
       try {
         if (map.getLayer("search-radius")) map.removeLayer("search-radius");
         if (map.getSource("search-radius-src")) map.removeSource("search-radius-src");
-      } catch {}
-      try {
-        if (userMarker) userMarker.remove();
       } catch {}
     };
   }, [userLoc, radiusMeters]);
