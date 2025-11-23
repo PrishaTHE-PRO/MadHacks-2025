@@ -15,6 +15,7 @@ import {
   Stack,
   Avatar,
   CircularProgress,
+  Toolbar,
 } from "@mui/material";
 
 interface Contact {
@@ -64,6 +65,9 @@ export function EventContactsPage() {
       }}
     >
       <Container maxWidth="md">
+        {/* spacer so fixed AppBar doesn't overlap content */}
+        <Toolbar />
+
         <Typography variant="h4" gutterBottom align="center">
           Event Contacts
         </Typography>
@@ -102,14 +106,16 @@ export function EventContactsPage() {
                       {contact.profile?.name?.charAt(0).toUpperCase()}
                     </Avatar>
                     <Box sx={{ flex: 1 }}>
-                      <Typography variant="h6">{contact.profile?.name}</Typography>
+                      <Typography variant="h6" sx={{ wordBreak: "break-word" }}>
+                        {contact.profile?.name}
+                      </Typography>
                       {contact.profile?.email && (
-                        <Typography variant="body2" color="text.secondary">
+                        <Typography variant="body2" color="text.secondary" sx={{ wordBreak: "break-word" }}>
                           {contact.profile.email}
                         </Typography>
                       )}
                       {contact.note && (
-                        <Typography variant="caption" color="text.secondary" sx={{ fontStyle: "italic" }}>
+                        <Typography variant="caption" color="text.secondary" sx={{ fontStyle: "italic", wordBreak: "break-word" }}>
                           {contact.note}
                         </Typography>
                       )}

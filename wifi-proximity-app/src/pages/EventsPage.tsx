@@ -1,5 +1,6 @@
-import { useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { useState, useEffect, useContext } from "react";
+import { Link } from "react-router-dom";
+import { AuthContext } from "../context/AuthContext";
 import {
   Box,
   Container,
@@ -18,16 +19,34 @@ import {
 import AddIcon from "@mui/icons-material/Add";
 
 export function EventsPage() {
+  const { user } = useContext(AuthContext);
   const [events, setEvents] = useState([
     { code: "DEMO123", name: "Demo Event 1", joined: false },
     { code: "DEMO456", name: "Demo Event 2", joined: false },
   ]);
   const [open, setOpen] = useState(false);
   const [eventCode, setEventCode] = useState("");
-  const navigate = useNavigate();
+  const [error, setError] = useState("");
+
+  // Load joined events from localStorage on mount
+  useEffect(() => {
+    if (user) {
+      const storageKey = `joinedEvents_${user.uid}`;
+      const savedJoinedEvents = localStorage.getItem(storageKey);
+      if (savedJoinedEvents) {
+        const joinedCodes = JSON.parse(savedJoinedEvents);
+        setEvents((prev) =>
+          prev.map((event) => ({
+            ...event,
+            joined: joinedCodes.includes(event.code),
+          }))
+        );
+      }
+    }
+  }, [user]);
 
   const handleJoinEvent = () => {
-    if (eventCode.trim()) {
+    if (eventCode.trim() && user) {
       const code = eventCode.trim().toUpperCase();
 
       // Check if event already exists
@@ -35,21 +54,30 @@ export function EventsPage() {
 
       if (existingEvent) {
         // Mark existing event as joined
-        setEvents(events.map((e) =>
-          e.code === code ? { ...e, joined: true } : e
-        ));
-      } else {
-        // Add new event and mark as joined
-        setEvents([
-          ...events,
-          { code: code, name: `Event ${eventCode}`, joined: true },
-        ]);
-      }
+        setEvents((prev) =>
+          prev.map((e) => (e.code === code ? { ...e, joined: true } : e))
+        );
 
-      // Navigate to nearby page for that event
-      navigate(`/nearby/${code}`);
-      setEventCode("");
-      setOpen(false);
+        // Save to localStorage
+        const storageKey = `joinedEvents_${user.uid}`;
+        const savedJoinedEvents = localStorage.getItem(storageKey);
+        const joinedCodes = savedJoinedEvents
+          ? JSON.parse(savedJoinedEvents)
+          : [];
+
+        if (!joinedCodes.includes(code)) {
+          joinedCodes.push(code);
+          localStorage.setItem(storageKey, JSON.stringify(joinedCodes));
+        }
+
+        // Stay on events page - don't navigate
+        setEventCode("");
+        setError("");
+        setOpen(false);
+      } else {
+        // Show error message
+        setError("That code does not exist. Please check and try again.");
+      }
     }
   };
 
@@ -124,7 +152,14 @@ export function EventsPage() {
       </Fab>
 
       {/* Event Code Dialog */}
-      <Dialog open={open} onClose={() => setOpen(false)}>
+      <Dialog
+        open={open}
+        onClose={() => {
+          setOpen(false);
+          setError("");
+          setEventCode("");
+        }}
+      >
         <DialogTitle>Join Event</DialogTitle>
         <DialogContent>
           <TextField
@@ -134,16 +169,36 @@ export function EventsPage() {
             fullWidth
             variant="outlined"
             value={eventCode}
-            onChange={(e) => setEventCode(e.target.value.toUpperCase())}
+            onChange={(e) => {
+              setEventCode(e.target.value.toUpperCase());
+              setError("");
+            }}
             onKeyPress={(e) => {
               if (e.key === "Enter") {
                 handleJoinEvent();
               }
             }}
           />
+          {error && (
+            <Typography
+              color="error"
+              variant="body2"
+              sx={{ mt: 1, fontSize: "0.875rem" }}
+            >
+              {error}
+            </Typography>
+          )}
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setOpen(false)}>Cancel</Button>
+          <Button
+            onClick={() => {
+              setOpen(false);
+              setError("");
+              setEventCode("");
+            }}
+          >
+            Cancel
+          </Button>
           <Button onClick={handleJoinEvent} variant="contained">
             Join
           </Button>
