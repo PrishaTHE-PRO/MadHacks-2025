@@ -1,3 +1,4 @@
+// src/pages/ProfileViewPage.tsx
 import { useEffect, useState, useContext } from "react";
 import { useParams, useNavigate, useSearchParams } from "react-router-dom";
 import { getProfileBySlug } from "../services/profileService";
@@ -9,14 +10,12 @@ import {
   Typography,
   Paper,
   Stack,
-  IconButton,
   Avatar,
   Chip,
   Divider,
   Button,
 } from "@mui/material";
 import { keyframes } from "@mui/system";
-import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 import EmailIcon from "@mui/icons-material/Email";
 import PhoneIcon from "@mui/icons-material/Phone";
 import LinkedInIcon from "@mui/icons-material/LinkedIn";
@@ -24,6 +23,7 @@ import LanguageIcon from "@mui/icons-material/Language";
 import PictureAsPdfIcon from "@mui/icons-material/PictureAsPdf";
 import PhotoLibraryIcon from "@mui/icons-material/PhotoLibrary";
 import MovieIcon from "@mui/icons-material/Movie";
+import { BackButton } from "../components/BackButton";
 
 interface Profile {
   slug: string;
@@ -91,7 +91,7 @@ export function ProfileViewPage() {
       setSaved(true);
     }
 
-    // Navigate back
+    // Navigate back depending on context
     if (backTo === "nearby" && eventCode) {
       navigate(`/nearby/${eventCode}`);
     } else if (backTo === "contacts" && eventCode) {
@@ -99,7 +99,8 @@ export function ProfileViewPage() {
     } else if (eventCode) {
       navigate(`/events/${eventCode}`);
     } else {
-      navigate("/events");
+      // fallback since /events route was removed
+      navigate("/dashboard");
     }
   };
 
@@ -120,8 +121,10 @@ export function ProfileViewPage() {
   }
 
   const avatarInitial =
-    (profile.name || profile.firstName || "").trim().charAt(0).toUpperCase() ||
-    "U";
+    (profile.name || profile.firstName || "")
+      .trim()
+      .charAt(0)
+      .toUpperCase() || "U";
 
   const gallery = (profile.galleryUrls || []).filter(Boolean);
 
@@ -135,19 +138,8 @@ export function ProfileViewPage() {
           "radial-gradient(circle at top, rgba(25,118,210,0.13), transparent 60%)",
       }}
     >
-      {/* Back Button */}
-      <Box sx={{ position: "fixed", top: 70, left: 16, zIndex: 1000 }}>
-        <IconButton
-          onClick={handleBack}
-          sx={{
-            bgcolor: "white",
-            boxShadow: 2,
-            "&:hover": { bgcolor: "grey.100" },
-          }}
-        >
-          <ArrowBackIcon />
-        </IconButton>
-      </Box>
+      {/* Back arrow with animated scoot + swipe-left on tap */}
+      <BackButton onClick={handleBack} />
 
       <Container maxWidth="sm" sx={{ py: 4 }}>
         <Paper

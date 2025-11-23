@@ -26,6 +26,7 @@ import {
 import { saveInteraction } from "../services/eventService";
 import AddIcon from "@mui/icons-material/Add";
 import { fadeUp, float, slideLeft } from "../styles/animations";
+import { BackButton } from "../components/BackButton";
 
 interface NearbyUser {
   deviceId: string;
@@ -42,21 +43,26 @@ export function NearbyPage() {
   const { user } = useContext(AuthContext);
   const [deviceId] = useState(() => {
     try {
-      // prefer modern API, fall back to a simple RFC4122-like generator if missing
-      if (typeof crypto !== "undefined" && typeof (crypto as any).randomUUID === "function") {
+      if (
+        typeof crypto !== "undefined" &&
+        typeof (crypto as any).randomUUID === "function"
+      ) {
         return (crypto as any).randomUUID();
       }
     } catch (err) {
       console.warn("crypto.randomUUID not available, falling back:", err);
     }
-
-    // fallback UUID v4 generator (not cryptographically strong but fine for client ids)
-    return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function (c) {
-      const r = (Math.random() * 16) | 0;
-      const v = c === 'x' ? r : (r & 0x3) | 0x8;
-      return v.toString(16);
-    });
+    // fallback UUID v4 generator
+    return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(
+      /[xy]/g,
+      function (c) {
+        const r = (Math.random() * 16) | 0;
+        const v = c === "x" ? r : (r & 0x3) | 0x8;
+        return v.toString(16);
+      }
+    );
   });
+
   const [myProfileSlug, setMyProfileSlug] = useState<string>("");
   const [others, setOthers] = useState<NearbyUser[]>([]);
   const [measuring, setMeasuring] = useState(false);
@@ -236,6 +242,9 @@ export function NearbyPage() {
         bgcolor: "background.default",
       }}
     >
+      {/* Back arrow (default: navigate(-1) – usually dashboard) */}
+      <BackButton />
+
       <Container
         maxWidth="sm"
         sx={{
@@ -279,8 +288,7 @@ export function NearbyPage() {
         <Stack spacing={2} sx={{ mt: 2 }}>
           {others.map((o) => {
             const isNearby =
-              o.latency !== undefined &&
-              o.latency < PROXIMITY_LATENCY_MS;
+              o.latency !== undefined && o.latency < PROXIMITY_LATENCY_MS;
 
             return (
               <Card
