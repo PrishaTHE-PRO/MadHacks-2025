@@ -176,6 +176,11 @@ export function ProfileEditPage() {
     }
   };
 
+  const rawResumeUrl = profile?.resumeUrl || "";
+  const resumeEmbedUrl = rawResumeUrl.includes("drive.google.com/file/d/")
+    ? rawResumeUrl.replace(/\/view.*$/, "/preview")
+    : rawResumeUrl;
+
   return (
     <Box
       sx={{
@@ -289,30 +294,35 @@ export function ProfileEditPage() {
               <Divider flexItem />
 
               {/* Resume */}
-              <Typography variant="subtitle1">Resume (PDF)</Typography>
-              <Stack direction={{ xs: "column", sm: "row" }} spacing={2}>
-                <Button
-                  variant="outlined"
-                  component="label"
-                  startIcon={<UploadFileIcon />}
-                >
-                  Upload PDF
-                  <input
-                    type="file"
-                    accept="application/pdf"
-                    hidden
-                    onChange={(e) =>
-                      handleResumeFile(e.target.files?.[0] || null)
-                    }
-                  />
-                </Button>
-                <TextField
-                  label="Resume URL (optional)"
-                  fullWidth
-                  value={resumeUrl}
-                  onChange={(e) => setResumeUrl(e.target.value)}
-                />
-              </Stack>
+              {profile.resumeUrl && (
+                <>
+                  <Divider sx={{ my: 3 }} />
+                  <Typography variant="h6" gutterBottom>
+                    Resume
+                  </Typography>
+                  <Box
+                    sx={{
+                      borderRadius: 2,
+                      border: "1px solid",
+                      borderColor: "divider",
+                      p: 1,
+                      bgcolor: "background.default",
+                      height: 300,
+                      overflow: "hidden",
+                    }}
+                  >
+                    <iframe
+                      src={resumeEmbedUrl}
+                      title="Resume"
+                      style={{
+                        border: "none",
+                        width: "100%",
+                        height: "100%",
+                      }}
+                    />
+                  </Box>
+                </>
+              )}
 
               {/* Gallery */}
               <Divider flexItem />

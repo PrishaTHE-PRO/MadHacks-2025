@@ -101,6 +101,32 @@ export function PublicProfilePage() {
     );
   }
 
+  const rawResumeUrl = profile.resumeUrl || "";
+  const resumeEmbedUrl = rawResumeUrl.includes("drive.google.com/file/d/")
+    ? rawResumeUrl.replace(/\/view.*$/, "/preview")
+    : rawResumeUrl;
+
+  function getYouTubeEmbedUrl(url: string): string | null {
+    try {
+      const u = new URL(url);
+      // https://www.youtube.com/watch?v=VIDEO_ID
+      if (u.hostname.includes("youtube.com") && u.searchParams.get("v")) {
+        return `https://www.youtube.com/embed/${u.searchParams.get("v")}`;
+      }
+      // https://youtu.be/VIDEO_ID
+      if (u.hostname === "youtu.be") {
+        return `https://www.youtube.com/embed${u.pathname}`;
+      }
+    } catch {
+      // invalid URL
+    }
+    return null;
+  }
+
+  const youtubeEmbedUrl = profile.videoUrl
+    ? getYouTubeEmbedUrl(profile.videoUrl)
+    : null;
+
   return (
     <Box sx={{ minHeight: "100vh", bgcolor: "#f5f5f5", pt: 8 }}>
       {/* Back Button with swipe-left animation on click */}
@@ -239,7 +265,7 @@ export function PublicProfilePage() {
                 }}
               >
                 <iframe
-                  src={profile.resumeUrl}
+                  src={resumeEmbedUrl}
                   title="Resume"
                   style={{
                     border: "none",
@@ -292,23 +318,43 @@ export function PublicProfilePage() {
               <Typography variant="h6" gutterBottom>
                 Video Portfolio
               </Typography>
-              <Box
-                sx={{
-                  borderRadius: 2,
-                  overflow: "hidden",
-                  bgcolor: "black",
-                }}
-              >
-                <video
-                  src={profile.videoUrl}
-                  controls
-                  style={{
+
+              {youtubeEmbedUrl ? (
+                // YouTube embed
+                <Box
+                  component="iframe"
+                  src={youtubeEmbedUrl}
+                  title="YouTube video"
+                  sx={{
                     width: "100%",
-                    maxHeight: 260,
-                    display: "block",
+                    aspectRatio: "16 / 9",
+                    border: 0,
+                    borderRadius: 2,
+                    boxShadow: 3,
                   }}
+                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                  allowFullScreen
                 />
-              </Box>
+              ) : (
+                // direct video file (mp4, webm, etc.)
+                <Box
+                  sx={{
+                    borderRadius: 2,
+                    overflow: "hidden",
+                    bgcolor: "black",
+                  }}
+                >
+                  <video
+                    src={profile.videoUrl}
+                    controls
+                    style={{
+                      width: "100%",
+                      maxHeight: 260,
+                      display: "block",
+                    }}
+                  />
+                </Box>
+              )}
             </>
           )}
 
@@ -339,3 +385,4 @@ export function PublicProfilePage() {
     </Box>
   );
 }
+

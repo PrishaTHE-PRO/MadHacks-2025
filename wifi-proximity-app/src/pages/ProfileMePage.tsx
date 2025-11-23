@@ -84,6 +84,31 @@ export function ProfileMePage() {
       .toUpperCase() || "U";
 
   const gallery = (profile?.galleryUrls || []).filter(Boolean);
+  const rawResumeUrl = profile?.resumeUrl || "";
+  const resumeEmbedUrl = rawResumeUrl.includes("drive.google.com/file/d/")
+    ? rawResumeUrl.replace(/\/view.*$/, "/preview")
+    : rawResumeUrl;
+
+  function getYouTubeEmbedUrl(url: string): string | null {
+    try {
+      const u = new URL(url);
+      // https://www.youtube.com/watch?v=VIDEO_ID
+      if (u.hostname.includes("youtube.com") && u.searchParams.get("v")) {
+        return `https://www.youtube.com/embed/${u.searchParams.get("v")}`;
+      }
+      // https://youtu.be/VIDEO_ID
+      if (u.hostname === "youtu.be") {
+        return `https://www.youtube.com/embed${u.pathname}`;
+      }
+    } catch {
+      // invalid URL
+    }
+    return null;
+  }
+
+  const youtubeEmbedUrl = profile?.videoUrl
+    ? getYouTubeEmbedUrl(profile.videoUrl)
+    : null;
 
   return (
     <Box
@@ -248,28 +273,30 @@ export function ProfileMePage() {
               {profile?.resumeUrl && (
                 <>
                   <Divider sx={{ my: 3 }} />
-                  <Stack
-                    direction="row"
-                    spacing={1}
-                    alignItems="center"
-                    mb={1}
-                  >
-                    <PictureAsPdfIcon fontSize="small" />
-                    <Typography variant="h6">Resume</Typography>
-                  </Stack>
+                  <Typography variant="h6" gutterBottom>
+                    Resume
+                  </Typography>
                   <Box
-                    component="iframe"
-                    src={profile.resumeUrl}
-                    title="Resume"
                     sx={{
-                      width: "100%",
-                      height: 320,
                       borderRadius: 2,
                       border: "1px solid",
                       borderColor: "divider",
-                      bgcolor: "background.paper",
+                      p: 1,
+                      bgcolor: "background.default",
+                      height: 300,
+                      overflow: "hidden",
                     }}
-                  />
+                  >
+                    <iframe
+                      src={resumeEmbedUrl}
+                      title="Resume"
+                      style={{
+                        border: "none",
+                        width: "100%",
+                        height: "100%",
+                      }}
+                    />
+                  </Box>
                 </>
               )}
 
@@ -330,27 +357,40 @@ export function ProfileMePage() {
               {profile?.videoUrl && (
                 <>
                   <Divider sx={{ my: 3 }} />
-                  <Stack
-                    direction="row"
-                    spacing={1}
-                    alignItems="center"
-                    mb={1}
-                  >
+                  <Stack direction="row" spacing={1} alignItems="center" mb={1}>
                     <MovieIcon fontSize="small" />
                     <Typography variant="h6">Video Portfolio</Typography>
                   </Stack>
-                  <Box
-                    component="video"
-                    src={profile.videoUrl}
-                    controls
-                    sx={{
-                      width: "100%",
-                      borderRadius: 2,
-                      boxShadow: 4,
-                      maxHeight: 320,
-                      objectFit: "cover",
-                    }}
-                  />
+
+                  {youtubeEmbedUrl ? (
+                    <Box
+                      component="iframe"
+                      src={youtubeEmbedUrl}
+                      title="YouTube video"
+                      sx={{
+                        width: "100%",
+                        aspectRatio: "16 / 9",
+                        border: 0,
+                        borderRadius: 2,
+                        boxShadow: 3,
+                      }}
+                      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                      allowFullScreen
+                    />
+                  ) : (
+                    <Box
+                      component="video"
+                      src={profile.videoUrl}
+                      controls
+                      sx={{
+                        width: "100%",
+                        borderRadius: 2,
+                        boxShadow: 4,
+                        maxHeight: 320,
+                        objectFit: "cover",
+                      }}
+                    />
+                  )}
                 </>
               )}
             </>
@@ -360,3 +400,4 @@ export function ProfileMePage() {
     </Box>
   );
 }
+
