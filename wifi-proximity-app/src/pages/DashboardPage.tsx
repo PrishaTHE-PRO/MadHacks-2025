@@ -106,9 +106,6 @@ export function DashboardPage() {
               <Button variant="contained" component={Link} to="/profile/me">
                 My Profile
               </Button>
-              <Button variant="outlined" component={Link} to="/profile/edit">
-                Edit Profile
-              </Button>
             </Stack>
           </Stack>
 
