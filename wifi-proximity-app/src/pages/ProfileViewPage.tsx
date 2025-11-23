@@ -97,16 +97,23 @@ export function ProfileViewPage() {
   }, [slug]);
 
   const handleBack = async () => {
+    // Try to save the interaction, but don't let it block navigation
     if (user && eventCode && profile && !saved) {
-      await saveInteraction({
-        ownerUserId: user.uid,
-        otherUserId: profile.userId,   // this is the UID, *not* the slug
-        eventCode,
-        note: "Met via proximity detection",
-      });
-      setSaved(true);
+      try {
+        await saveInteraction({
+          ownerUserId: user.uid,
+          otherUserId: profile.userId, // this is the UID, *not* the slug
+          eventCode,
+          note: "Met via proximity detection",
+        });
+        setSaved(true);
+      } catch (err) {
+        console.error("Failed to save interaction, going back anyway:", err);
+        // optional: show a toast/snackbar here
+      }
     }
 
+    // Always run the navigation logic, even if the save failed
     if (backTo === "nearby" && eventCode) {
       navigate(`/nearby/${eventCode}`);
     } else if (backTo === "contacts" && eventCode) {
@@ -114,7 +121,7 @@ export function ProfileViewPage() {
     } else if (eventCode) {
       navigate(`/events/${eventCode}`);
     } else {
-      // fallback since /events route was removed
+      // since /events was removed, fallback to dashboard
       navigate("/dashboard");
     }
   };

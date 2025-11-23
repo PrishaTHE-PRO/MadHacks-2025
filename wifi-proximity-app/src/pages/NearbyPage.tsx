@@ -21,7 +21,7 @@ import { BackButton } from "../components/BackButton";
 
 interface NearbyUser {
   deviceId: string;
-  profileSlug: string;
+  profileSlug?: string;   // <-- make optional
   userId: string;
   name?: string;
   latency?: number;
@@ -65,18 +65,25 @@ export function NearbyPage() {
   async function handleViewProfile(otherUser: NearbyUser) {
     if (!user || !eventCode || !otherUser.profileSlug) return;
 
-    // log interaction
-    await saveInteraction({
-      ownerUserId: user.uid,
-      otherUserId: otherUser.userId,
-      eventCode,
-      note: "Met via WiFi proximity",
-    });
+    try {
+      // This is where the Firebase permission error is coming from
+      await saveInteraction({
+        ownerUserId: user.uid,
+        otherUserId: otherUser.userId,
+        eventCode,
+        note: "Met via WiFi proximity",
+      });
+    } catch (err) {
+      console.error("Failed to save interaction, navigating anyway:", err);
+      // You could also show a toast/snackbar here if you want
+    }
 
+    // Always navigate, even if saving fails
     navigate(
       `/profile/view/${otherUser.profileSlug}?eventCode=${eventCode}&back=nearby`
     );
   }
+
 
   // Socket setup
   useEffect(() => {
@@ -105,13 +112,15 @@ export function NearbyPage() {
       const latency = now - (data.timestamp || now);
 
       let displayName: string | undefined;
-      try {
-        if (data.userId) {
+
+      if (data.userId) {
+        try {
           const p = await getProfileByIdOrSlug(data.userId);
           if (p?.name) displayName = p.name;
+        } catch (err) {
+          console.error("Failed to load nearby user profile (permissions?)", err);
+          // fall back to anonymous name
         }
-      } catch (err) {
-        console.error("Failed to load nearby user profile", err);
       }
 
       const incoming: NearbyUser = {
@@ -133,6 +142,7 @@ export function NearbyPage() {
         return [...prev, incoming];
       });
     });
+
 
     return () => {
       clearInterval(interval);
