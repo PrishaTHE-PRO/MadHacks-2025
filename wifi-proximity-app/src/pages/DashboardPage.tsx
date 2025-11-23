@@ -23,11 +23,16 @@ import { useTheme } from "@mui/material/styles";
 import DarkModeIcon from "@mui/icons-material/DarkMode";
 import LightModeIcon from "@mui/icons-material/LightMode";
 import AddIcon from "@mui/icons-material/Add";
-
+import CalendarMonthIcon from "@mui/icons-material/CalendarMonth";
+import AccessTimeIcon from "@mui/icons-material/AccessTime";
+import PlaceIcon from "@mui/icons-material/Place";
 
 type EventItem = {
   code: string;
   name: string;
+  date: string;
+  time: string;
+  location: string;
   joined: boolean;
 };
 
@@ -40,10 +45,26 @@ export function DashboardPage() {
   const username =
     user?.displayName ||
     (user?.email ? user.email.split("@")[0] : "back");
+
   const [events, setEvents] = useState<EventItem[]>([
-    { code: "DEMO123", name: "Demo Event 1", joined: false },
-    { code: "DEMO456", name: "Demo Event 2", joined: false },
+    {
+      code: "DEMO123",
+      name: "Demo Event 1",
+      date: "Nov 23, 2025",
+      time: "2:00–4:00 PM",
+      location: "Union South, UW–Madison",
+      joined: false,
+    },
+    {
+      code: "DEMO456",
+      name: "Demo Event 2",
+      date: "Nov 24, 2025",
+      time: "10:00–11:30 AM",
+      location: "Grainger Hall",
+      joined: false,
+    },
   ]);
+
   const [open, setOpen] = useState(false);
   const [eventCode, setEventCode] = useState("");
 
@@ -51,25 +72,28 @@ export function DashboardPage() {
     if (eventCode.trim()) {
       const code = eventCode.trim().toUpperCase();
 
-      // check if event already exists
       const existingEvent = events.find((e) => e.code === code);
 
       if (existingEvent) {
-        // mark existing event as joined
         setEvents(
           events.map((e) =>
             e.code === code ? { ...e, joined: true } : e
           )
         );
       } else {
-        // add new event and mark as joined
         setEvents([
           ...events,
-          { code, name: `Event ${eventCode}`, joined: true },
+          {
+            code,
+            name: `Event ${eventCode}`,
+            date: "TBD",
+            time: "TBD",
+            location: "TBD",
+            joined: true,
+          },
         ]);
       }
 
-      // go to nearby page for that event
       navigate(`/nearby/${code}`);
       setEventCode("");
       setOpen(false);
@@ -80,20 +104,28 @@ export function DashboardPage() {
     <Box
       sx={{
         minHeight: "100vh",
-        bgcolor: "background.default",
+        bgcolor:
+          theme.palette.mode === "dark"
+            ? "background.default"
+            : "#f5f5f7",
       }}
     >
       <Container maxWidth="lg" sx={{ pt: 10, pb: 6 }}>
         <Stack spacing={4}>
-          {/* header row */}
+          {/* header */}
           <Stack
             direction="row"
             alignItems="center"
             justifyContent="space-between"
           >
-            <Typography variant="h4" fontWeight={600}>
-              Events Dashboard
-            </Typography>
+            <Box>
+              <Typography variant="h4" fontWeight={600}>
+                Events Dashboard
+              </Typography>
+              <Typography variant="body2" color="text.secondary">
+                Join events, see who’s nearby, and manage your profile.
+              </Typography>
+            </Box>
             <IconButton onClick={toggleColorMode}>
               {theme.palette.mode === "dark" ? (
                 <LightModeIcon />
@@ -104,9 +136,9 @@ export function DashboardPage() {
           </Stack>
 
           {/* quick actions */}
-          <Stack spacing={2}>
+          <Stack spacing={1}>
             <Typography variant="body1">
-              Welcome  <b>{username}</b>!
+              Welcome <b>{username}</b>!
             </Typography>
             <Stack direction={{ xs: "column", sm: "row" }} spacing={2}>
               <Button variant="contained" component={Link} to="/profile/me">
@@ -117,6 +149,9 @@ export function DashboardPage() {
 
           {/* events section */}
           <Stack spacing={2}>
+            <Typography variant="h6" fontWeight={600}>
+              Your Events
+            </Typography>
             <Box
               sx={{
                 display: "flex",
@@ -129,12 +164,54 @@ export function DashboardPage() {
                   key={event.code}
                   sx={{ flex: "1 1 300px", maxWidth: 400 }}
                 >
-                  <Card elevation={3}>
+                  <Card elevation={3} sx={{ borderRadius: 3 }}>
                     <CardContent>
-                      <Typography variant="h6">{event.name}</Typography>
-                      <Typography variant="body2" color="text.secondary">
-                        Code: {event.code}
+                      <Typography variant="h6" gutterBottom>
+                        {event.name}
                       </Typography>
+
+                      <Stack spacing={0.5}>
+                        <Stack
+                          direction="row"
+                          spacing={1}
+                          alignItems="center"
+                        >
+                          <CalendarMonthIcon fontSize="small" />
+                          <Typography variant="body2">
+                            {event.date}
+                          </Typography>
+                        </Stack>
+
+                        <Stack
+                          direction="row"
+                          spacing={1}
+                          alignItems="center"
+                        >
+                          <AccessTimeIcon fontSize="small" />
+                          <Typography variant="body2">
+                            {event.time}
+                          </Typography>
+                        </Stack>
+
+                        <Stack
+                          direction="row"
+                          spacing={1}
+                          alignItems="center"
+                        >
+                          <PlaceIcon fontSize="small" />
+                          <Typography variant="body2">
+                            {event.location}
+                          </Typography>
+                        </Stack>
+
+                        <Typography
+                          variant="body2"
+                          color="text.secondary"
+                          mt={0.5}
+                        >
+                          Code: {event.code}
+                        </Typography>
+                      </Stack>
                     </CardContent>
                     <CardActions>
                       <Button
@@ -184,7 +261,7 @@ export function DashboardPage() {
             variant="outlined"
             value={eventCode}
             onChange={(e) => setEventCode(e.target.value.toUpperCase())}
-            onKeyPress={(e) => {
+            onKeyDown={(e) => {
               if (e.key === "Enter") {
                 handleJoinEvent();
               }
