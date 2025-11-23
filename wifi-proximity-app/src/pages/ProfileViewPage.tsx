@@ -60,6 +60,7 @@ export function ProfileViewPage() {
   const { slug } = useParams<{ slug: string }>();
   const [searchParams] = useSearchParams();
   const eventCode = searchParams.get("eventCode");
+  const eventName = searchParams.get("eventName");
   const backTo = searchParams.get("back") || "events";
   const navigate = useNavigate();
   const { user } = useContext(AuthContext);
@@ -105,16 +106,15 @@ export function ProfileViewPage() {
       setSaved(true);
     }
 
-    // Always navigate to the specific route to avoid history loops
     if (backTo === "nearby" && eventCode) {
-      navigate(`/nearby/${eventCode}`, { replace: true });
+      navigate(`/nearby/${eventCode}`);
     } else if (backTo === "contacts" && eventCode) {
-      navigate(`/events/${eventCode}`, { replace: true });
+      navigate(`/events/${eventCode}`);
     } else if (eventCode) {
-      navigate(`/events/${eventCode}`, { replace: true });
+      navigate(`/events/${eventCode}`);
     } else {
       // fallback since /events route was removed
-      navigate("/dashboard", { replace: true });
+      navigate("/dashboard");
     }
   };
 
@@ -377,28 +377,16 @@ export function ProfileViewPage() {
               />
             </>
           )}
-
-          {/* Action Button */}
-          <Box sx={{ mt: 4, display: "flex", justifyContent: "center" }}>
-            <Button
-              variant="contained"
-              size="large"
-              fullWidth
-              onClick={handleBack}
-            >
-              {saved ? "Contact Saved! Go Back" : "Save Contact & Go Back"}
-            </Button>
-          </Box>
         </Paper>
 
-        {eventCode && (
+        {(eventName || eventCode) && (
           <Typography
             variant="caption"
             color="text.secondary"
             align="center"
             sx={{ display: "block", mt: 2 }}
           >
-            Met at event: {eventCode}
+            Met at event: {eventName || eventCode}
           </Typography>
         )}
       </Container>
