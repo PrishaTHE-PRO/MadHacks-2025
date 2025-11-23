@@ -108,6 +108,7 @@ export function DashboardPage() {
   const [createRole, setCreateRole] = useState<Role>("attendee");
   const [generatedCode, setGeneratedCode] = useState<string | null>(null);
   const [newEventImageFile, setNewEventImageFile] = useState<File | null>(null);
+  const [newEventIsPrivate, setNewEventIsPrivate] = useState<boolean>(false);
   const [createError, setCreateError] = useState("");
 
   // Load events
@@ -217,6 +218,7 @@ export function DashboardPage() {
         createdByUid: user.uid,
         role: createRole,
         imageUrl,
+        isPrivate: newEventIsPrivate,
       });
 
       const newEvent: EventItem = {
@@ -719,6 +721,18 @@ export function DashboardPage() {
                   control={<Radio />}
                   label="Recruiter"
                 />
+              </RadioGroup>
+            </FormControl>
+
+            <FormControl>
+              <FormLabel>Visibility</FormLabel>
+              <RadioGroup
+                row
+                value={newEventIsPrivate ? "private" : "public"}
+                onChange={(e) => setNewEventIsPrivate(e.target.value === "private")}
+              >
+                <FormControlLabel value="public" control={<Radio />} label="Public (shows on map)" />
+                <FormControlLabel value="private" control={<Radio />} label="Private (requires code)" />
               </RadioGroup>
             </FormControl>
 

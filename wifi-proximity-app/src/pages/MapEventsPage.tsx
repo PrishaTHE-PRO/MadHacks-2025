@@ -11,7 +11,10 @@ import {
   Chip,
 } from "@mui/material";
 import { BackButton } from "../components/BackButton";
-import { getEventsNearby } from "../services/eventService";
+import { getEventsNearby, joinEventInDb } from "../services/eventService";
+import { useContext } from "react";
+import { AuthContext } from "../context/AuthContext";
+import { useNavigate } from "react-router-dom";
 // no auth context needed on this read-only map page
 
 
@@ -28,6 +31,16 @@ function haversineDistance(lat1: number, lon1: number, lat2: number, lon2: numbe
   return R * c;
 }
 
+function escapeHtml(s: any) {
+  if (s == null) return "";
+  return String(s)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/\"/g, "&quot;")
+    .replace(/\'/g, "&#039;");
+}
+
 export function MapEventsPage() {
   const mapContainer = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<mapboxgl.Map | null>(null);
@@ -35,6 +48,8 @@ export function MapEventsPage() {
   const [userLoc, setUserLoc] = useState<{ lat: number; lng: number } | null>(null);
   const [radiusMeters, setRadiusMeters] = useState(2000);
   const [nearbyEvents, setNearbyEvents] = useState<any[]>([]);
+  const { user } = useContext(AuthContext);
+  const navigate = useNavigate();
 
   // set token from env (Vite injects import.meta.env at build/dev time)
   mapboxgl.accessToken = import.meta.env.VITE_MAPBOX_TOKEN as string;
@@ -222,6 +237,8 @@ export function MapEventsPage() {
           );
 
           const filtered = eventsWithCoords.filter((e) => {
+            // exclude private events from the public map
+            if (e.isPrivate) return false;
             if (e.lat == null || e.lng == null) return false;
             const d = haversineDistance(lat, lng, e.lat, e.lng);
             return d <= radiusMeters;
@@ -265,15 +282,52 @@ export function MapEventsPage() {
                 delete markersRef.current[code];
               }
 
+              // Create popup content with a join button for public events
+              const popupNode = document.createElement("div");
+              popupNode.style.minWidth = "160px";
+              popupNode.innerHTML = `
+                <div style="font-weight:700;margin-bottom:6px">${escapeHtml(ev.name)}</div>
+                <div style="font-size:12px;color:#444;margin-bottom:6px">${ev.date} ${formatTime(ev.time)}</div>
+                <div style="font-size:12px;color:#444;margin-bottom:8px">${escapeHtml(ev.location || "")}</div>
+                <button id="join-btn-${code}" style="background:#1976d2;color:#fff;border:none;padding:6px 10px;border-radius:6px;cursor:pointer">Join</button>
+              `;
+
               const marker = new mapboxgl.Marker({ color: computeColorForEvent(ev) })
                 .setLngLat([lngNum, latNum])
-                .setPopup(new mapboxgl.Popup({ offset: 12 }).setHTML(`<strong>${ev.name}</strong><br/>${ev.date} ${formatTime(ev.time)}`))
+                .setPopup(new mapboxgl.Popup({ offset: 12 }).setDOMContent(popupNode))
                 .addTo(map);
 
+              // attach click handler for join button
+              try {
+                const btn = popupNode.querySelector(`#join-btn-${code}`) as HTMLButtonElement | null;
+                if (btn) {
+                  btn.addEventListener("click", async (e) => {
+                    e.preventDefault();
+                    // If user isn't signed in, send them to login
+                    if (!user) {
+                      navigate("/login");
+                      return;
+                    }
+                    try {
+                      // default role: attendee
+                      await joinEventInDb(code, user.uid, "attendee");
+                      // navigate to the event nearby page (dashboard will show joined event)
+                      navigate(`/nearby/${code}`);
+                    } catch (joinErr: any) {
+                      console.error("MapEventsPage: failed to join event", joinErr);
+                      // inform user
+                      window.alert(joinErr?.message || "Failed to join event.");
+                    }
+                  });
+                }
+              } catch (attachErr) {
+                console.warn("MapEventsPage: failed to attach join handler", attachErr);
+              }
+
               markersRef.current[code] = marker;
-            } catch (err) {
-              console.error("MapEventsPage: failed to create marker for", code, err);
-            }
+              } catch (err) {
+                console.error("MapEventsPage: failed to create marker for", code, err);
+              }
           });
 
           console.debug("MapEventsPage: current markers", Object.keys(markersRef.current));

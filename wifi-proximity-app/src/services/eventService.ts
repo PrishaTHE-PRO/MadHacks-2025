@@ -159,6 +159,8 @@ export type FirestoreEvent = {
     // optional geo/time info for map
     lat?: number;
     lng?: number;
+    // visibility: private events will not be shown on public maps
+    isPrivate?: boolean | null;
     startTimestamp?: number;
 };
 
@@ -180,6 +182,7 @@ export async function createEventInDb(args: {
     lat?: number | null;
     lng?: number | null;
     startTimestamp?: number | null;
+    isPrivate?: boolean;
 }) {
     const {
         code,
@@ -193,6 +196,7 @@ export async function createEventInDb(args: {
         lat,
         lng,
         startTimestamp,
+        isPrivate,
     } = args;
 
     const eventRef = doc(db, EVENTS_COLLECTION, code);
@@ -212,6 +216,7 @@ export async function createEventInDb(args: {
         lat: lat ?? null,
         lng: lng ?? null,
         startTimestamp: startTimestamp ?? null,
+        isPrivate: isPrivate ? true : false,
         createdAt: serverTimestamp(),
     });
 
