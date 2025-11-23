@@ -7,14 +7,12 @@ import {
   Typography,
   Paper,
   Stack,
-  Button,
   Slider,
   Chip,
 } from "@mui/material";
 import { BackButton } from "../components/BackButton";
-import { getEventsNearby, joinEventInDb, getMembersForEvent } from "../services/eventService";
-import { useContext } from "react";
-import { AuthContext } from "../context/AuthContext";
+import { getEventsNearby } from "../services/eventService";
+// no auth context needed on this read-only map page
 
 
 function haversineDistance(lat1: number, lon1: number, lat2: number, lon2: number) {
@@ -37,7 +35,6 @@ export function MapEventsPage() {
   const [userLoc, setUserLoc] = useState<{ lat: number; lng: number } | null>(null);
   const [radiusMeters, setRadiusMeters] = useState(2000);
   const [nearbyEvents, setNearbyEvents] = useState<any[]>([]);
-  const { user } = useContext(AuthContext);
 
   // set token from env (Vite injects import.meta.env at build/dev time)
   mapboxgl.accessToken = import.meta.env.VITE_MAPBOX_TOKEN as string;
@@ -373,17 +370,7 @@ export function MapEventsPage() {
     return `${hh}:${mm} ${period}`;
   }
 
-  async function handleAttend(ev: any) {
-    if (!user) return;
-    try {
-      await joinEventInDb(ev.code, user.uid, "attendee");
-      // refresh members for popup maybe
-      const members = await getMembersForEvent(ev.code);
-      window.alert(`Joined ${ev.name}. ${members.length} people now attending.`);
-    } catch (err: any) {
-      window.alert(err?.message || "Error joining event");
-    }
-  }
+  // attend handler removed — attendance is managed from the event page
 
   return (
     <Box sx={{ minHeight: "100vh", pt: 10, pb: 4, bgcolor: "background.default" }}>
@@ -465,10 +452,7 @@ export function MapEventsPage() {
                 <Typography variant="h6" sx={{ fontWeight: 600 }}>{ev.name}</Typography>
                 <Typography variant="body1" color="text.secondary">{ev.date} {ev.time} — {ev.location}</Typography>
               </Stack>
-              <Stack direction="row" spacing={2} alignItems="center">
-                <Button size="large" variant="contained" onClick={() => handleAttend(ev)} sx={{ minWidth: 120 }}>Attend</Button>
-                <Button size="large" onClick={async () => { const members = await getMembersForEvent(ev.code); window.alert(`${members.filter(m => m.role === 'recruiter').length} recruiters attending.`); }} sx={{ minWidth: 160 }}>See recruiters</Button>
-              </Stack>
+              {/* actions removed — map page is read-only */}
             </Paper>
           ))}
         </Stack>
