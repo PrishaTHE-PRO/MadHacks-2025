@@ -1,4 +1,4 @@
-import { useState, useEffect, useContext } from "react";
+import { useState, useEffect, useContext, useRef } from "react";
 import {
   Box,
   Container,
@@ -9,30 +9,15 @@ import {
   Stack,
   Avatar,
   Divider,
-  IconButton,
 } from "@mui/material";
-import { keyframes } from "@mui/system";
 import { useNavigate } from "react-router-dom";
 import { AuthContext } from "../context/AuthContext";
 import { saveProfile, getProfileByUid } from "../services/profileService";
-import DeleteIcon from "@mui/icons-material/Delete";
-
-// simple animation helpers
-const floatIn = keyframes`
-  0% { opacity: 0; transform: translateY(16px) scale(0.98); }
-  100% { opacity: 1; transform: translateY(0) scale(1); }
-`;
-
-const pulseGlow = keyframes`
-  0% { box-shadow: 0 0 0 0 rgba(25,118,210,0.4); }
-  70% { box-shadow: 0 0 0 10px rgba(25,118,210,0); }
-  100% { box-shadow: 0 0 0 0 rgba(25,118,210,0); }
-`;
-
-const normalizeGallery = (arr: string[]): string[] => {
-  const filled = arr.filter(Boolean);
-  return [...filled, ...Array(5 - filled.length).fill("")].slice(0, 5);
-};
+import PhotoCameraIcon from "@mui/icons-material/PhotoCamera";
+import UploadFileIcon from "@mui/icons-material/UploadFile";
+import MovieIcon from "@mui/icons-material/Movie";
+import ImageIcon from "@mui/icons-material/Image";
+import defaultAvatar from "../assets/defaultAvatar.png";
 
 export function ProfileEditPage() {
   const { user } = useContext(AuthContext);
@@ -46,10 +31,13 @@ export function ProfileEditPage() {
   const [website, setWebsite] = useState("");
   const [photoURL, setPhotoURL] = useState<string>("");
   const [resumeUrl, setResumeUrl] = useState("");
-  const [galleryUrls, setGalleryUrls] = useState<string[]>(["", "", "", "", ""]);
+  const [galleryUrls, setGalleryUrls] = useState<string[]>([]);
   const [videoUrl, setVideoUrl] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+
+  // keep track of object URLs to clean up
+  const objectUrlsRef = useRef<string[]>([]);
 
   useEffect(() => {
     if (!user) return;
@@ -73,11 +61,7 @@ export function ProfileEditPage() {
         setWebsite(p.website || "");
         setPhotoURL(p.photoURL || "");
         setResumeUrl(p.resumeUrl || "");
-
-        if (Array.isArray(p.galleryUrls)) {
-          setGalleryUrls(normalizeGallery(p.galleryUrls));
-        }
-
+        setGalleryUrls(p.galleryUrls || []);
         setVideoUrl(p.videoUrl || "");
       } catch (err) {
         console.error("Failed to load profile:", err);
@@ -86,21 +70,72 @@ export function ProfileEditPage() {
 
     return () => {
       mounted = false;
+      // clean up object URLs
+      objectUrlsRef.current.forEach((url) => URL.revokeObjectURL(url));
     };
   }, [user]);
 
-  const handleGalleryUrlAtIndex = (index: number, value: string) => {
-    const next = [...galleryUrls];
-    next[index] = value.trim();
-    setGalleryUrls(normalizeGallery(next));
+  const pushObjectUrl = (url: string) => {
+    objectUrlsRef.current.push(url);
   };
 
-  const clearGallerySlot = (index: number) => {
-    const next = [...galleryUrls];
-    next[index] = "";
-    setGalleryUrls(normalizeGallery(next));
+  const handlePhotoFile = (file: File | null) => {
+    if (!file) return;
+    const url = URL.createObjectURL(file);
+    pushObjectUrl(url);
+    setPhotoURL(url); // later you can upload to Firebase Storage & store real URL
   };
-  
+
+  const handleResumeFile = (file: File | null) => {
+    if (!file) return;
+    if (file.type !== "application/pdf") {
+      setError("Resume must be a PDF file.");
+      return;
+    }
+    const url = URL.createObjectURL(file);
+    pushObjectUrl(url);
+    setResumeUrl(url);
+  };
+
+  const handleGalleryFiles = (files: FileList | null) => {
+    if (!files) return;
+    const urls: string[] = [];
+    Array.from(files)
+      .slice(0, 5)
+      .forEach((file) => {
+        if (file.type.startsWith("image/")) {
+          const url = URL.createObjectURL(file);
+          pushObjectUrl(url);
+          urls.push(url);
+        }
+      });
+    if (urls.length) {
+      setGalleryUrls(urls);
+    }
+  };
+
+  const handleVideoFile = (file: File | null) => {
+    if (!file) return;
+    if (!file.type.startsWith("video/")) {
+      setError("Video must be a video file (mp4, webm, etc).");
+      return;
+    }
+    const tempUrl = URL.createObjectURL(file);
+    const video = document.createElement("video");
+    video.preload = "metadata";
+    video.src = tempUrl;
+    video.onloadedmetadata = () => {
+      window.URL.revokeObjectURL(video.src);
+      const duration = video.duration;
+      if (duration > 60) {
+        setError("Video must be at most 60 seconds long.");
+        return;
+      }
+      pushObjectUrl(tempUrl);
+      setVideoUrl(tempUrl);
+    };
+  };
+
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
@@ -118,9 +153,6 @@ export function ProfileEditPage() {
 
       const nameCombined = `${firstName} ${lastName}`.trim();
 
-      // only keep non-empty gallery URLs
-      const compactGallery = galleryUrls.filter(Boolean);
-
       await saveProfile(user.uid, {
         firstName,
         lastName,
@@ -131,11 +163,11 @@ export function ProfileEditPage() {
         website,
         photoURL,
         resumeUrl,
-        galleryUrls: compactGallery,
+        galleryUrls,
         videoUrl,
       });
 
-      navigate("/profile/me", { replace: true });
+      navigate("/profile/me");
     } catch (err) {
       console.error(err);
       setError("Failed to save profile. Check console for details.");
@@ -143,9 +175,6 @@ export function ProfileEditPage() {
       setLoading(false);
     }
   };
-
-  const avatarInitial =
-    (firstName || lastName || "U").trim().charAt(0).toUpperCase();
 
   return (
     <Box
@@ -155,8 +184,6 @@ export function ProfileEditPage() {
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
-        background:
-          "radial-gradient(circle at top, rgba(25,118,210,0.12), transparent 60%)",
       }}
     >
       <Container maxWidth="sm">
@@ -165,52 +192,48 @@ export function ProfileEditPage() {
             p: 4,
             borderRadius: 4,
             boxShadow: 6,
-            backdropFilter: "blur(10px)",
-            animation: `${floatIn} 0.5s ease-out`,
+            backdropFilter: "blur(8px)",
           }}
         >
           <Typography variant="h5" gutterBottom align="center">
             Edit Profile
           </Typography>
 
-          {/* avatar + photo upload */}
-          <Stack spacing={2} alignItems="center" sx={{ mb: 3 }}>
+          <Stack spacing={3} alignItems="center" sx={{ mb: 2 }}>
             <Avatar
-              src={photoURL || undefined}
+              src={photoURL || defaultAvatar}
               sx={{
-                width: 128,
-                height: 128,
-                border: "3px solid white",
+                width: 120,
+                height: 120,
                 boxShadow: 4,
-                animation: `${pulseGlow} 2.4s infinite`,
-                bgcolor: "primary.main",
-                fontSize: 40,
+                border: "3px solid white",
               }}
-            >
-              {avatarInitial}
-            </Avatar>
-
-            <Stack direction="row" spacing={1} alignItems="center">
-              <IconButton
-                aria-label="remove photo"
-                onClick={() => setPhotoURL("")}
-              >
-                <DeleteIcon fontSize="small" />
-              </IconButton>
-            </Stack>
-
-            <TextField
-              size="small"
-              label="Photo URL (optional)"
-              fullWidth
-              value={photoURL}
-              onChange={(e) => setPhotoURL(e.target.value)}
             />
+            <Stack direction="row" spacing={1}>
+              <Button
+                variant="outlined"
+                component="label"
+                startIcon={<PhotoCameraIcon />}
+              >
+                Upload Photo
+                <input
+                  type="file"
+                  accept="image/*"
+                  hidden
+                  onChange={(e) => handlePhotoFile(e.target.files?.[0] || null)}
+                />
+              </Button>
+              <TextField
+                size="small"
+                label="Photo URL"
+                value={photoURL}
+                onChange={(e) => setPhotoURL(e.target.value)}
+              />
+            </Stack>
           </Stack>
 
           <Box component="form" onSubmit={handleSave}>
             <Stack spacing={2}>
-              {/* name row */}
               <Stack direction={{ xs: "column", sm: "row" }} spacing={2}>
                 <TextField
                   label="First name"
@@ -268,79 +291,91 @@ export function ProfileEditPage() {
               {/* Resume */}
               <Typography variant="subtitle1">Resume (PDF)</Typography>
               <Stack direction={{ xs: "column", sm: "row" }} spacing={2}>
+                <Button
+                  variant="outlined"
+                  component="label"
+                  startIcon={<UploadFileIcon />}
+                >
+                  Upload PDF
+                  <input
+                    type="file"
+                    accept="application/pdf"
+                    hidden
+                    onChange={(e) =>
+                      handleResumeFile(e.target.files?.[0] || null)
+                    }
+                  />
+                </Button>
                 <TextField
                   label="Resume URL (optional)"
                   fullWidth
                   value={resumeUrl}
                   onChange={(e) => setResumeUrl(e.target.value)}
                 />
-                <IconButton
-                  aria-label="remove resume"
-                  onClick={() => setResumeUrl("")}
-                >
-                  <DeleteIcon fontSize="small" />
-                </IconButton>
               </Stack>
 
-              <Divider flexItem />
-
               {/* Gallery */}
+              <Divider flexItem />
               <Typography variant="subtitle1">
                 Photo Gallery (up to 5 images)
               </Typography>
-
-              <Stack spacing={1}>
-                {galleryUrls.map((url, index) => (
-                  <Stack
-                    key={index}
-                    direction={{ xs: "column", sm: "row" }}
-                    spacing={1}
-                    alignItems="center"
-                  >
-                    <Typography
-                      variant="body2"
-                      sx={{ width: 60, flexShrink: 0 }}
-                    >
-                      Image {index + 1}
-                    </Typography>
-                    <TextField
-                      size="small"
-                      label="Image URL (optional)"
-                      fullWidth
-                      value={url}
-                      onChange={(e) =>
-                        handleGalleryUrlAtIndex(index, e.target.value)
-                      }
-                    />
-                    <IconButton
-                      aria-label={`remove image ${index + 1}`}
-                      onClick={() => clearGallerySlot(index)}
-                    >
-                      <DeleteIcon fontSize="small" />
-                    </IconButton>
-                  </Stack>
-                ))}
+              <Stack direction={{ xs: "column", sm: "row" }} spacing={2}>
+                <Button
+                  variant="outlined"
+                  component="label"
+                  startIcon={<ImageIcon />}
+                >
+                  Upload Images
+                  <input
+                    type="file"
+                    accept="image/*"
+                    multiple
+                    hidden
+                    onChange={(e) => handleGalleryFiles(e.target.files)}
+                  />
+                </Button>
+                <TextField
+                  label="Image URLs (comma separated, optional)"
+                  fullWidth
+                  value={galleryUrls.join(", ")}
+                  onChange={(e) =>
+                    setGalleryUrls(
+                      e.target.value
+                        .split(",")
+                        .map((s) => s.trim())
+                        .filter(Boolean)
+                    )
+                  }
+                />
               </Stack>
 
-              <Divider flexItem />
-
               {/* Video */}
+              <Divider flexItem />
               <Typography variant="subtitle1">
                 Video Portfolio (max 60 seconds)
               </Typography>
               <Stack direction={{ xs: "column", sm: "row" }} spacing={2}>
+                <Button
+                  variant="outlined"
+                  component="label"
+                  startIcon={<MovieIcon />}
+                >
+                  Upload Video
+                  <input
+                    type="file"
+                    accept="video/*"
+                    hidden
+                    onChange={(e) =>
+                      handleVideoFile(e.target.files?.[0] || null)
+                    }
+                  />
+                </Button>
                 <TextField
                   label="Video URL (optional)"
                   fullWidth
                   value={videoUrl}
                   onChange={(e) => setVideoUrl(e.target.value)}
                 />
-                <IconButton
-                  aria-label="remove video"
-                  onClick={() => setVideoUrl("")}
-                >
-                  <DeleteIcon fontSize="small" />
-                </IconButton>
               </Stack>
 
               {error && (

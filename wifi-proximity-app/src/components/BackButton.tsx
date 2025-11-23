@@ -1,7 +1,7 @@
 // src/components/BackButton.tsx
 import type { FC } from "react";
 import { useNavigate } from "react-router-dom";
-import { Box, IconButton, useTheme } from "@mui/material";
+import { Box, IconButton } from "@mui/material";
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 import { motion } from "framer-motion";
 
@@ -12,9 +12,7 @@ type BackButtonProps = {
 };
 
 export const BackButton: FC<BackButtonProps> = ({ onClick }) => {
-  const navigate = useNavigate();
-  const theme = useTheme();
-  const isDark = theme.palette.mode === "dark";
+  const navigate =  useNavigate();
 
   const handleClick = () => {
     if (onClick) {
@@ -26,24 +24,22 @@ export const BackButton: FC<BackButtonProps> = ({ onClick }) => {
   };
 
   return (
-      <Box
-        sx={{
-          position: "fixed",
-          top: 30,
-          left: 15,
-          zIndex: 2000,
-        }}
-      >
+    <Box
+      sx={{
+        position: "fixed",
+        top: 70,
+        left: 45,
+        zIndex: 2000,
+      }}
+    >
       <MotionIconButton
         onClick={handleClick}
         sx={{
-          bgcolor: isDark ? "rgba(30, 41, 59, 0.95)" : "rgba(255,255,255,0.95)",
-          color: isDark ? "grey.100" : "text.primary",
-          border: isDark ? "1px solid rgba(255,255,255,0.1)" : "1px solid rgba(0,0,0,0.06)",
+          bgcolor: "rgba(255,255,255,0.95)",
+          color: "text.primary",
+          border: "1px solid rgba(0,0,0,0.06)",
           boxShadow: 2,
-          "&:hover": {
-            bgcolor: isDark ? "rgba(51, 65, 85, 0.95)" : "grey.100"
-          },
+          "&:hover": { bgcolor: "grey.100" },
         }}
         aria-label="Back"
         // little idle scoot + smooth entrance
