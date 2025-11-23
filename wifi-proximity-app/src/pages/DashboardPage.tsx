@@ -484,8 +484,8 @@ export function DashboardPage() {
       <Box
         sx={{
           position: "fixed",
-          top: 70,
-          left: 45,
+          top: 30,
+          left: 15,
           zIndex: 2000,
         }}
       >
