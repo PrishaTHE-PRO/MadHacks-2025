@@ -24,6 +24,8 @@ import {
 } from "@mui/material";
 
 import { useContext, useState, useEffect } from "react";
+import ReactDatePicker from "react-datepicker";
+import "react-datepicker/dist/react-datepicker.css";
 import { AuthContext } from "../context/AuthContext";
 
 import { storage } from "../firebase";
@@ -100,6 +102,8 @@ export function DashboardPage() {
   const [newEventName, setNewEventName] = useState("");
   const [newEventDate, setNewEventDate] = useState("");
   const [newEventTime, setNewEventTime] = useState("");
+  const [newEventDateObj, setNewEventDateObj] = useState<Date | null>(null);
+  const [newEventTimeObj, setNewEventTimeObj] = useState<Date | null>(null);
   const [newEventLocation, setNewEventLocation] = useState("");
   const [createRole, setCreateRole] = useState<Role>("attendee");
   const [generatedCode, setGeneratedCode] = useState<string | null>(null);
@@ -627,21 +631,37 @@ export function DashboardPage() {
               value={newEventName}
               onChange={(e) => setNewEventName(e.target.value)}
             />
-            <TextField
-              label="Date"
-              type="date"
-              fullWidth
-              InputLabelProps={{ shrink: true }}
-              value={newEventDate}
-              onChange={(e) => setNewEventDate(e.target.value)}
+            <ReactDatePicker
+              selected={newEventDateObj}
+              onChange={(d: Date | null) => {
+                setNewEventDateObj(d);
+                if (d) {
+                  const yyyy = d.getFullYear();
+                  const mm = String(d.getMonth() + 1).padStart(2, "0");
+                  const dd = String(d.getDate()).padStart(2, "0");
+                  setNewEventDate(`${yyyy}-${mm}-${dd}`);
+                } else setNewEventDate("");
+              }}
+              dateFormat="yyyy-MM-dd"
+              customInput={<TextField label="Date" fullWidth />}
             />
-            <TextField
-              label="Time"
-              type="time"
-              fullWidth
-              InputLabelProps={{ shrink: true }}
-              value={newEventTime}
-              onChange={(e) => setNewEventTime(e.target.value)}
+
+            <ReactDatePicker
+              selected={newEventTimeObj}
+              onChange={(d: Date | null) => {
+                setNewEventTimeObj(d);
+                if (d) {
+                  const hh = String(d.getHours()).padStart(2, "0");
+                  const mm = String(d.getMinutes()).padStart(2, "0");
+                  setNewEventTime(`${hh}:${mm}`);
+                } else setNewEventTime("");
+              }}
+              showTimeSelect
+              showTimeSelectOnly
+              timeIntervals={15}
+              timeCaption="Time"
+              dateFormat="hh:mm aa"
+              customInput={<TextField label="Time" fullWidth />}
             />
             <TextField
               label="Location"
