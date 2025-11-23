@@ -3,6 +3,16 @@ import { useParams, useNavigate } from "react-router-dom";
 import { getProximitySocket } from "../services/proximityService";
 import { AuthContext } from "../context/AuthContext";
 import { getProfileByUid } from "../services/profileService";
+import {
+  Box,
+  Container,
+  Typography,
+  Card,
+  CardContent,
+  CardActions,
+  Button,
+  Stack,
+} from "@mui/material";
 
 export function NearbyPage() {
   const { eventCode } = useParams();
@@ -45,7 +55,10 @@ export function NearbyPage() {
       setOthers((prev) =>
         prev.some((o) => o.deviceId === data.deviceId)
           ? prev
-          : [...prev, { deviceId: data.deviceId, profileSlug: data.profileSlug }]
+          : [
+              ...prev,
+              { deviceId: data.deviceId, profileSlug: data.profileSlug },
+            ]
       );
     });
 
@@ -63,44 +76,57 @@ export function NearbyPage() {
   }, [deviceId, eventCode, myProfileSlug, navigate]);
 
   return (
-    <div className="min-h-screen flex flex-col items-center p-4">
-      <h1 className="text-xl font-semibold mb-2">
-        Nearby people at {eventCode}
-      </h1>
-      <p className="text-sm text-gray-500 mb-4">
-        Anyone on the same WiFi with this page open will appear here.
-      </p>
+    <Box
+      sx={{
+        minHeight: "100vh",
+        display: "flex",
+        alignItems: "center",
+      }}
+    >
+      <Container maxWidth="sm">
+        <Typography variant="h5" gutterBottom>
+          Nearby people at {eventCode}
+        </Typography>
+        <Typography variant="body2" color="text.secondary" gutterBottom>
+          Anyone on the same WiFi with this page open and event code selected
+          will appear here.
+        </Typography>
 
-      {others.length === 0 && (
-        <p className="text-sm text-gray-400">Waiting for other devices…</p>
-      )}
+        {others.length === 0 && (
+          <Typography variant="body2" color="text.secondary" sx={{ mt: 2 }}>
+            Waiting for other devices…
+          </Typography>
+        )}
 
-      <div className="w-full max-w-md space-y-3 mt-4">
-        {others.map((o) => (
-          <div
-            key={o.deviceId}
-            className="flex items-center justify-between border rounded-xl p-3"
-          >
-            <div>
-              <p className="text-sm font-medium">Someone nearby</p>
-              <p className="text-xs text-gray-500">
-                Tap to send them your profile
-              </p>
-            </div>
-            <button
-              className="px-3 py-1 rounded-full text-xs font-semibold bg-black text-white"
-              onClick={() =>
-                getProximitySocket().emit("shareProfile", {
-                  toDeviceId: o.deviceId,
-                  profileSlug: myProfileSlug,
-                })
-              }
-            >
-              Share
-            </button>
-          </div>
-        ))}
-      </div>
-    </div>
+        <Stack spacing={2} sx={{ mt: 2 }}>
+          {others.map((o) => (
+            <Card key={o.deviceId}>
+              <CardContent>
+                <Typography variant="subtitle1">
+                  Someone nearby
+                </Typography>
+                <Typography variant="body2" color="text.secondary">
+                  Tap to send them your profile
+                </Typography>
+              </CardContent>
+              <CardActions>
+                <Button
+                  size="small"
+                  variant="contained"
+                  onClick={() =>
+                    getProximitySocket().emit("shareProfile", {
+                      toDeviceId: o.deviceId,
+                      profileSlug: myProfileSlug,
+                    })
+                  }
+                >
+                  Share
+                </Button>
+              </CardActions>
+            </Card>
+          ))}
+        </Stack>
+      </Container>
+    </Box>
   );
 }

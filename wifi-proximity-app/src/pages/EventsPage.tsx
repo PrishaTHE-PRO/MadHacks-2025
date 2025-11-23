@@ -1,4 +1,13 @@
 import { Link } from "react-router-dom";
+import {
+  Box,
+  Container,
+  Typography,
+  Card,
+  CardContent,
+  CardActions,
+  Button,
+} from "@mui/material";
 
 export function EventsPage() {
   const events = [
@@ -7,18 +16,58 @@ export function EventsPage() {
   ];
 
   return (
-    <div className="events-page">
-      <h1>Events</h1>
-      <div className="events-list">
-        {events.map((event) => (
-          <div key={event.code} className="event-item">
-            <h3>{event.name}</h3>
-            <p>Code: {event.code}</p>
-            <Link to={`/events/${event.code}`}>View Contacts</Link>
-            <Link to={`/nearby/${event.code}`}>Find Nearby</Link>
-          </div>
-        ))}
-      </div>
-    </div>
+    <Box
+      sx={{
+        minHeight: "100vh",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        py: 4,
+      }}
+    >
+      <Container maxWidth="md">
+        <Typography variant="h4" gutterBottom align="center">
+          Events
+        </Typography>
+
+        <Box
+          sx={{
+            display: "flex",
+            flexWrap: "wrap",
+            gap: 3,
+            justifyContent: "center",
+          }}
+        >
+          {events.map((event) => (
+            <Box key={event.code} sx={{ flex: "1 1 300px", maxWidth: 400 }}>
+              <Card elevation={3}>
+                <CardContent>
+                  <Typography variant="h6">{event.name}</Typography>
+                  <Typography variant="body2" color="text.secondary">
+                    Code: {event.code}
+                  </Typography>
+                </CardContent>
+                <CardActions>
+                  <Button
+                    size="small"
+                    component={Link}
+                    to={`/events/${event.code}`}
+                  >
+                    View Contacts
+                  </Button>
+                  <Button
+                    size="small"
+                    component={Link}
+                    to={`/nearby/${event.code}`}
+                  >
+                    Find Nearby
+                  </Button>
+                </CardActions>
+              </Card>
+            </Box>
+          ))}
+        </Box>
+      </Container>
+    </Box>
   );
 }

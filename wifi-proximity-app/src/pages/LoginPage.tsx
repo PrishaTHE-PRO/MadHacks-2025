@@ -2,6 +2,15 @@ import { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { login } from "../services/authService";
 import { FirebaseError } from "firebase/app";
+import {
+  Box,
+  Container,
+  Paper,
+  TextField,
+  Button,
+  Typography,
+  Stack,
+} from "@mui/material";
 
 export function LoginPage() {
   const [email, setEmail] = useState("");
@@ -21,7 +30,6 @@ export function LoginPage() {
     } catch (err) {
       console.error("Login error:", err);
       if (err instanceof FirebaseError) {
-        console.log("Firebase error code:", err.code);
         switch (err.code) {
           case "auth/user-not-found":
           case "auth/wrong-password":
@@ -36,10 +44,14 @@ export function LoginPage() {
             break;
           case "auth/configuration-not-found":
           case "auth/project-not-found":
-            setError("Firebase is not configured properly. Please check your setup.");
+            setError(
+              "Firebase is not configured properly. Please check your setup."
+            );
             break;
           default:
-            setError(`Failed to login: ${err.code}. Please try again or check the console.`);
+            setError(
+              `Failed to login: ${err.code}. Please try again or check the console.`
+            );
         }
       } else {
         setError("An unexpected error occurred. Please try again.");
@@ -50,35 +62,69 @@ export function LoginPage() {
   };
 
   return (
-    <div className="login-page">
-      <h1>Login</h1>
-      {error && (
-        <div className="error-message" style={{ color: "red", marginBottom: "10px" }}>
-          {error}
-        </div>
-      )}
-      <form onSubmit={handleLogin}>
-        <input
-          type="email"
-          placeholder="Email"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          required
-        />
-        <input
-          type="password"
-          placeholder="Password"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          required
-        />
-        <button type="submit" disabled={loading}>
-          {loading ? "Logging in..." : "Login"}
-        </button>
-      </form>
-      <p style={{ marginTop: "15px" }}>
-        Don't have an account? <Link to="/signup">Sign up</Link>
-      </p>
-    </div>
+    <Box
+      sx={{
+        minHeight: "100vh",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+      }}
+    >
+      <Container maxWidth="xs">
+        <Paper elevation={4} sx={{ p: 4, borderRadius: 3 }}>
+          <Typography variant="h5" component="h1" gutterBottom align="center">
+            Login
+          </Typography>
+
+          {error && (
+            <Typography
+              color="error"
+              variant="body2"
+              sx={{ mb: 2, textAlign: "center" }}
+            >
+              {error}
+            </Typography>
+          )}
+
+          <Box component="form" onSubmit={handleLogin}>
+            <Stack spacing={2}>
+              <TextField
+                label="Email"
+                type="email"
+                fullWidth
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                required
+              />
+              <TextField
+                label="Password"
+                type="password"
+                fullWidth
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                required
+              />
+
+              <Button
+                type="submit"
+                variant="contained"
+                fullWidth
+                disabled={loading}
+              >
+                {loading ? "Logging in..." : "Login"}
+              </Button>
+            </Stack>
+          </Box>
+
+          <Typography
+            variant="body2"
+            sx={{ mt: 2, textAlign: "center" }}
+          >
+            Don&apos;t have an account?{" "}
+            <Link to="/signup">Sign up</Link>
+          </Typography>
+        </Paper>
+      </Container>
+    </Box>
   );
 }

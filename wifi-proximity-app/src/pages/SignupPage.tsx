@@ -2,6 +2,15 @@ import { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { signup } from "../services/authService";
 import { FirebaseError } from "firebase/app";
+import {
+  Box,
+  Container,
+  Paper,
+  TextField,
+  Button,
+  Typography,
+  Stack,
+} from "@mui/material";
 
 export function SignupPage() {
   const [email, setEmail] = useState("");
@@ -18,27 +27,35 @@ export function SignupPage() {
 
     try {
       await signup(email, password);
+      // TODO: also save "name" into profile later
       navigate("/dashboard");
     } catch (err) {
       console.error("Signup error:", err);
       if (err instanceof FirebaseError) {
-        console.log("Firebase error code:", err.code);
         switch (err.code) {
           case "auth/email-already-in-use":
-            setError("This email is already registered. Please use a different email or login instead.");
+            setError(
+              "This email is already registered. Please use a different email or login instead."
+            );
             break;
           case "auth/weak-password":
-            setError("Password is too weak. Please use at least 6 characters.");
+            setError(
+              "Password is too weak. Please use at least 6 characters."
+            );
             break;
           case "auth/invalid-email":
             setError("Invalid email address.");
             break;
           case "auth/configuration-not-found":
           case "auth/project-not-found":
-            setError("Firebase is not configured properly. Please check your setup.");
+            setError(
+              "Firebase is not configured properly. Please check your setup."
+            );
             break;
           default:
-            setError(`Failed to create account: ${err.code}. Please check the console for details.`);
+            setError(
+              `Failed to create account: ${err.code}. Please check the console for details.`
+            );
         }
       } else {
         setError("An unexpected error occurred. Please try again.");
@@ -49,43 +66,77 @@ export function SignupPage() {
   };
 
   return (
-    <div className="signup-page">
-      <h1>Sign Up</h1>
-      {error && (
-        <div className="error-message" style={{ color: "red", marginBottom: "10px" }}>
-          {error}
-        </div>
-      )}
-      <form onSubmit={handleSignup}>
-        <input
-          type="text"
-          placeholder="Name"
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-          required
-        />
-        <input
-          type="email"
-          placeholder="Email"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          required
-        />
-        <input
-          type="password"
-          placeholder="Password"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          required
-          minLength={6}
-        />
-        <button type="submit" disabled={loading}>
-          {loading ? "Creating Account..." : "Sign Up"}
-        </button>
-      </form>
-      <p style={{ marginTop: "15px" }}>
-        Already have an account? <Link to="/login">Login</Link>
-      </p>
-    </div>
+    <Box
+      sx={{
+        minHeight: "100vh",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+      }}
+    >
+      <Container maxWidth="xs">
+        <Paper elevation={4} sx={{ p: 4, borderRadius: 3 }}>
+          <Typography variant="h5" component="h1" gutterBottom align="center">
+            Sign Up
+          </Typography>
+
+          {error && (
+            <Typography
+              color="error"
+              variant="body2"
+              sx={{ mb: 2, textAlign: "center" }}
+            >
+              {error}
+            </Typography>
+          )}
+
+          <Box component="form" onSubmit={handleSignup}>
+            <Stack spacing={2}>
+              <TextField
+                label="Name"
+                fullWidth
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                required
+              />
+              <TextField
+                label="Email"
+                type="email"
+                fullWidth
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                required
+              />
+              <TextField
+                label="Password"
+                type="password"
+                fullWidth
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                required
+                inputProps={{ minLength: 6 }}
+              />
+
+              <Button
+                type="submit"
+                variant="contained"
+                fullWidth
+                disabled={loading}
+              >
+                {loading ? "Creating Account..." : "Sign Up"}
+              </Button>
+            </Stack>
+          </Box>
+
+          <Typography
+            variant="body2"
+            sx={{ mt: 2, textAlign: "center" }}
+          >
+            Already have an account?{" "}
+            <Link to="/login">Login</Link>
+          </Typography>
+        </Paper>
+      </Container>
+    </Box>
   );
 }
