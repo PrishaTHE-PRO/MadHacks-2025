@@ -30,32 +30,23 @@ import { fadeUp, float, slideLeft } from "../styles/animations";
 interface NearbyUser {
   deviceId: string;
   profileSlug: string;
+  userId: string;
   latency?: number;
   timestamp?: number;
 }
 
-const PROXIMITY_LATENCY_MS = 50; // ~3 feet over WiFi
-const PROXIMITY_RADIUS_FEET = 3;
+const PROXIMITY_LATENCY_MS = 250; // treat <~250ms as "nearby"
+const PROXIMITY_RADIUS_FEET = 1; // just an approximate label
 
 export function NearbyPage() {
   const { eventCode } = useParams();
   const { user } = useContext(AuthContext);
+  // stable per-user ID (so reloading the page doesn’t create “new devices”)
   const [deviceId] = useState(() => {
-    try {
-      // prefer modern API, fall back to a simple RFC4122-like generator if missing
-      if (typeof crypto !== "undefined" && typeof (crypto as any).randomUUID === "function") {
-        return (crypto as any).randomUUID();
-      }
-    } catch (err) {
-      console.warn("crypto.randomUUID not available, falling back:", err);
-    }
+    if (user?.uid) return `uid-${user.uid}`;
 
-    // fallback UUID v4 generator (not cryptographically strong but fine for client ids)
-    return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function (c) {
-      const r = (Math.random() * 16) | 0;
-      const v = c === 'x' ? r : (r & 0x3) | 0x8;
-      return v.toString(16);
-    });
+    // fallback for not logged in
+    return "anon-" + Math.random().toString(36).slice(2);
   });
   const [myProfileSlug, setMyProfileSlug] = useState<string>("");
   const [others, setOthers] = useState<NearbyUser[]>([]);
@@ -89,17 +80,27 @@ export function NearbyPage() {
         const socket = getProximitySocket();
         const pingStart = Date.now();
 
-        socket.emit("ping", { targetDeviceId, deviceId });
-
-        socket.once("pong", (data: any) => {
-          if (data.fromDeviceId === targetDeviceId) {
+        const handler = (data: any) => {
+          // only accept if it’s the device we pinged and the pong is for us
+          if (
+            data.fromDeviceId === targetDeviceId &&
+            data.toDeviceId === deviceId
+          ) {
             const latency = Date.now() - pingStart;
+            socket.off("latencyPong", handler);
             resolve(latency);
           }
-        });
+        };
 
-        // Timeout after 1s
-        setTimeout(() => resolve(9999), 1000);
+        socket.on("latencyPong", handler);
+
+        socket.emit("latencyPing", { targetDeviceId, deviceId });
+
+        // timeout after 1s
+        setTimeout(() => {
+          socket.off("latencyPong", handler);
+          resolve(9999);
+        }, 1000);
       });
     },
     [deviceId]
@@ -136,10 +137,15 @@ export function NearbyPage() {
         return;
 
       openedProfilesRef.current.add(otherUser.deviceId);
+      if (!otherUser.profileSlug) {
+        console.warn("No profileSlug for nearby user; skipping auto-open");
+        return;
+      }
 
       await saveInteraction({
         ownerUserId: user.uid,
-        otherUserId: otherUser.profileSlug,
+        otherUserId: otherUser.userId,
+        otherUserSlug: otherUser.profileSlug,
         eventCode: eventCode,
         note: `Auto-detected via WiFi proximity (${latency}ms latency)`,
       });
@@ -153,15 +159,17 @@ export function NearbyPage() {
 
   // Socket wiring
   useEffect(() => {
-    if (!eventCode || !myProfileSlug) return;
+    if (!eventCode || !user) return;
 
     const socket = getProximitySocket();
+    const profileIdentifier = myProfileSlug || user.uid || deviceId;
 
     const sendPresence = () => {
       socket.emit("presence", {
         eventCode,
         deviceId,
-        profileSlug: myProfileSlug,
+        profileSlug: profileIdentifier,
+        userId: user.uid,
         timestamp: Date.now(),
       });
     };
@@ -178,6 +186,7 @@ export function NearbyPage() {
       const incomingUser: NearbyUser = {
         deviceId: data.deviceId,
         profileSlug: data.profileSlug,
+        userId: data.userId,
         latency,
         timestamp: receivedAt,
       };
@@ -188,14 +197,26 @@ export function NearbyPage() {
       }
 
       setOthers((prev) => {
-        const existing = prev.find((o) => o.deviceId === data.deviceId);
+        // 🔑 one card per profileSlug
+        const existing = prev.find(
+          (o) => o.profileSlug === data.profileSlug
+        );
+
         if (existing) {
+          // Update the *current* deviceId + latency
           return prev.map((o) =>
-            o.deviceId === data.deviceId
-              ? { ...o, latency, timestamp: receivedAt }
+            o.profileSlug === data.profileSlug
+              ? {
+                ...o,
+                deviceId: data.deviceId,
+                latency,
+                timestamp: receivedAt,
+              }
               : o
           );
         }
+
+        // New person
         return [...prev, incomingUser];
       });
     });
@@ -224,7 +245,7 @@ export function NearbyPage() {
       socket.off("pong");
       socket.off("incomingProfile");
     };
-  }, [deviceId, eventCode, myProfileSlug, navigate, openProfileIfClose]);
+  }, [deviceId, eventCode, myProfileSlug, navigate, openProfileIfClose, user]);
 
   return (
     <Box
@@ -297,9 +318,8 @@ export function NearbyPage() {
                   </Typography>
                   <Typography variant="body2" color="text.secondary">
                     {o.latency !== undefined
-                      ? `Latency: ${o.latency}ms ${
-                          isNearby ? "(< 3 feet!)" : ""
-                        }`
+                      ? `Latency: ${o.latency}ms ${isNearby ? "(< 3 feet!)" : ""
+                      }`
                       : "Measuring distance..."}
                   </Typography>
                   {isNearby && (
@@ -341,17 +361,21 @@ export function NearbyPage() {
                     {measuring
                       ? "Checking..."
                       : isNearby
-                      ? "View Profile"
-                      : "Check Distance"}
+                        ? "View Profile"
+                        : "Check Distance"}
                   </Button>
                   <Button
                     size="small"
-                    onClick={() =>
+                    onClick={() => {
+                      if (!myProfileSlug) {
+                        alert("You need to set up your profile before sharing it.");
+                        return;
+                      }
                       getProximitySocket().emit("shareProfile", {
                         toDeviceId: o.deviceId,
                         profileSlug: myProfileSlug,
-                      })
-                    }
+                      });
+                    }}
                   >
                     Share
                   </Button>
