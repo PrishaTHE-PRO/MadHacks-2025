@@ -72,6 +72,7 @@ export function DashboardPage() {
 
   const [open, setOpen] = useState(false);
   const [eventCode, setEventCode] = useState("");
+  const [eventError, setEventError] = useState("");
 
   // Load joined events from localStorage on mount
   useEffect(() => {
@@ -91,35 +92,24 @@ export function DashboardPage() {
   }, [user]);
 
   const handleJoinEvent = () => {
-    if (!eventCode.trim() || !user) return;
+    if (!eventCode.trim() || !user) {
+      setEventError("Enter an event code to continue");
+      return;
+    }
 
     const code = eventCode.trim().toUpperCase();
     const storageKey = `joinedEvents_${user.uid}`;
 
-    setEvents((prevEvents) => {
-      const existingEvent = prevEvents.find((e) => e.code === code);
-      let nextEvents: EventItem[];
+    const matchedEvent = events.find((e) => e.code === code);
+    if (!matchedEvent) {
+      setEventError("Event code not found. Please check and try again.");
+      return;
+    }
 
-      if (existingEvent) {
-        // mark existing event as joined
-        nextEvents = prevEvents.map((e) =>
-          e.code === code ? { ...e, joined: true } : e
-        );
-      } else {
-        // create a new event with default metadata + image
-        nextEvents = [
-          ...prevEvents,
-          {
-            code,
-            name: `Event ${eventCode}`,
-            date: "TBD",
-            time: "TBD",
-            location: "TBD",
-            joined: true,
-            image: unionSouthImg, // or graingerHallImg, or pick dynamically
-          },
-        ];
-      }
+    setEvents((prevEvents) => {
+      const nextEvents = prevEvents.map((e) =>
+        e.code === code ? { ...e, joined: true } : e
+      );
 
       // update joined codes in localStorage
       const savedJoinedEvents = localStorage.getItem(storageKey);
@@ -137,6 +127,7 @@ export function DashboardPage() {
 
     // reset + close dialog + navigate
     setEventCode("");
+    setEventError("");
     setOpen(false);
     navigate(`/nearby/${code}`);
   };
@@ -295,7 +286,11 @@ export function DashboardPage() {
         color="primary"
         aria-label="add"
         sx={{ position: "fixed", bottom: 24, right: 24 }}
-        onClick={() => setOpen(true)}
+        onClick={() => {
+          setEventError("");
+          setEventCode("");
+          setOpen(true);
+        }}
       >
         <AddIcon />
       </Fab>
@@ -306,6 +301,7 @@ export function DashboardPage() {
         onClose={() => {
           setOpen(false);
           setEventCode("");
+          setEventError("");
         }}
       >
         <DialogTitle>Join Event</DialogTitle>
@@ -319,12 +315,15 @@ export function DashboardPage() {
             value={eventCode}
             onChange={(e) => {
               setEventCode(e.target.value.toUpperCase());
+              if (eventError) setEventError("");
             }}
             onKeyDown={(e) => {
               if (e.key === "Enter") {
                 handleJoinEvent();
               }
             }}
+            error={Boolean(eventError)}
+            helperText={eventError || " "}
           />
         </DialogContent>
         <DialogActions>
@@ -332,6 +331,7 @@ export function DashboardPage() {
             onClick={() => {
               setOpen(false);
               setEventCode("");
+              setEventError("");
             }}
           >
             Cancel
