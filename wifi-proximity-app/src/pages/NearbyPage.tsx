@@ -37,26 +37,28 @@ interface NearbyUser {
 const PROXIMITY_LATENCY_MS = 50; // ~3 feet over WiFi
 const PROXIMITY_RADIUS_FEET = 3;
 
+const generateDeviceId = () => {
+  const globalCrypto = (globalThis as any)?.crypto;
+  try {
+    if (globalCrypto?.randomUUID) return globalCrypto.randomUUID();
+    if (globalCrypto?.getRandomValues) {
+      const arr = new Uint32Array(4);
+      globalCrypto.getRandomValues(arr);
+      return Array.from(arr)
+        .map((n) => n.toString(16).padStart(8, "0"))
+        .join("-");
+    }
+  } catch (err) {
+    console.warn("Unable to use crypto APIs for deviceId, using fallback", err);
+  }
+  // Weak fallback, but fine for client identifiers
+  return `${Math.random().toString(36).slice(2)}-${Date.now()}`;
+};
+
 export function NearbyPage() {
   const { eventCode } = useParams();
   const { user } = useContext(AuthContext);
-  const [deviceId] = useState(() => {
-    try {
-      // prefer modern API, fall back to a simple RFC4122-like generator if missing
-      if (typeof crypto !== "undefined" && typeof (crypto as any).randomUUID === "function") {
-        return (crypto as any).randomUUID();
-      }
-    } catch (err) {
-      console.warn("crypto.randomUUID not available, falling back:", err);
-    }
-
-    // fallback UUID v4 generator (not cryptographically strong but fine for client ids)
-    return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function (c) {
-      const r = (Math.random() * 16) | 0;
-      const v = c === 'x' ? r : (r & 0x3) | 0x8;
-      return v.toString(16);
-    });
-  });
+  const [deviceId] = useState(() => generateDeviceId());
   const [myProfileSlug, setMyProfileSlug] = useState<string>("");
   const [others, setOthers] = useState<NearbyUser[]>([]);
   const [measuring, setMeasuring] = useState(false);
