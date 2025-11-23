@@ -89,7 +89,7 @@ export function EventContactsPage() {
         ) : (
           <Stack spacing={2}>
             {contacts.map((contact) => (
-              <Card key={contact.id}>
+              <Card key={contact.id} sx={{ boxShadow: '0 6px 18px rgba(16,24,40,0.06)' }}>
                 <CardContent>
                   <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
                     <Avatar
@@ -99,16 +99,16 @@ export function EventContactsPage() {
                       {contact.profile?.name?.charAt(0).toUpperCase()}
                     </Avatar>
                     <Box sx={{ flex: 1 }}>
-                      <Typography variant="h6" sx={{ wordBreak: "break-word" }}>
+                      <Typography variant="h6" sx={{ wordBreak: "break-word", fontWeight: 700, textShadow: '0 1px 2px rgba(0,0,0,0.04)' }}>
                         {contact.profile?.name}
                       </Typography>
                       {contact.profile?.email && (
-                        <Typography variant="body2" color="text.secondary" sx={{ wordBreak: "break-word" }}>
+                        <Typography variant="body2" color="text.secondary" sx={{ wordBreak: "break-word", textShadow: '0 1px 2px rgba(0,0,0,0.03)' }}>
                           {contact.profile.email}
                         </Typography>
                       )}
                       {contact.note && (
-                        <Typography variant="caption" color="text.secondary" sx={{ fontStyle: "italic", wordBreak: "break-word" }}>
+                        <Typography variant="caption" color="text.secondary" sx={{ fontStyle: "italic", wordBreak: "break-word", textShadow: '0 1px 2px rgba(0,0,0,0.02)' }}>
                           {contact.note}
                         </Typography>
                       )}

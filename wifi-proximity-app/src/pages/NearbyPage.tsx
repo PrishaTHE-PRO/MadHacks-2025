@@ -32,7 +32,36 @@ const PROXIMITY_RADIUS_FEET = 3;
 export function NearbyPage() {
   const { eventCode } = useParams();
   const { user } = useContext(AuthContext);
-  const [deviceId] = useState(() => crypto.randomUUID());
+  const [deviceId] = useState(() => {
+    // crypto.randomUUID isn't available in some older browsers (mobile Safari).
+    // Fallback to a small UUID v4 generator using crypto.getRandomValues when needed.
+    try {
+      if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
+        return crypto.randomUUID();
+      }
+    } catch (e) {
+      // ignore and fallback
+    }
+
+    // fallback UUID v4
+    try {
+      const bytes = (typeof crypto !== "undefined" && typeof crypto.getRandomValues === "function")
+        ? crypto.getRandomValues(new Uint8Array(16))
+        : null;
+      if (bytes) {
+        // Per RFC4122 v4
+        bytes[6] = (bytes[6] & 0x0f) | 0x40;
+        bytes[8] = (bytes[8] & 0x3f) | 0x80;
+        const hex = Array.from(bytes).map((b) => b.toString(16).padStart(2, "0")).join("");
+        return `${hex.slice(0,8)}-${hex.slice(8,12)}-${hex.slice(12,16)}-${hex.slice(16,20)}-${hex.slice(20)}`;
+      }
+    } catch (e) {
+      // ignore
+    }
+
+    // last resort random string
+    return `id-${Math.random().toString(36).slice(2, 10)}-${Date.now().toString(36)}`;
+  });
   const [myProfileSlug, setMyProfileSlug] = useState<string>("");
   const [others, setOthers] = useState<NearbyUser[]>([]);
   const [measuring, setMeasuring] = useState(false);
