@@ -29,7 +29,6 @@ interface NearbyUser {
 }
 
 const PROXIMITY_LATENCY_MS = 250;
-const PROXIMITY_RADIUS_FEET = 1;
 
 export function NearbyPage() {
   const { eventCode } = useParams<{ eventCode: string }>();

@@ -18,7 +18,6 @@ import EmailIcon from "@mui/icons-material/Email";
 import PhoneIcon from "@mui/icons-material/Phone";
 import LinkedInIcon from "@mui/icons-material/LinkedIn";
 import LanguageIcon from "@mui/icons-material/Language";
-import PictureAsPdfIcon from "@mui/icons-material/PictureAsPdf";
 import PhotoLibraryIcon from "@mui/icons-material/PhotoLibrary";
 import MovieIcon from "@mui/icons-material/Movie";
 import { BackButton } from "../components/BackButton";
