@@ -15,6 +15,7 @@ import { PublicProfilePage } from "./pages/PublicProfilePage";
 import { ProfileViewPage } from "./pages/ProfileViewPage";
 import { NearbyPage } from "./pages/NearbyPage";
 import { EventContactsPage } from "./pages/EventContactsPage";
+import { MapEventsPage } from "./pages/MapEventsPage";
 
 import { PageTransition } from "./components/PageTransition";
 
@@ -137,6 +138,16 @@ export default function App() {
                 <EventContactsPage />
               </PageTransition>
             </RequireAuth>
+          }
+        />
+
+        {/* Map of nearby events (GPS + Mapbox) */}
+        <Route
+          path="/map"
+          element={
+            <PageTransition>
+              <MapEventsPage />
+            </PageTransition>
           }
         />
 
