@@ -16,7 +16,6 @@ import { getEventsNearby, joinEventInDb, getMembersForEvent } from "../services/
 import { useContext } from "react";
 import { AuthContext } from "../context/AuthContext";
 
-mapboxgl.accessToken = import.meta.env.VITE_MAPBOX_TOKEN;
 
 function haversineDistance(lat1: number, lon1: number, lat2: number, lon2: number) {
   const toRad = (v: number) => (v * Math.PI) / 180;
@@ -39,15 +38,62 @@ export function MapEventsPage() {
   const [nearbyEvents, setNearbyEvents] = useState<any[]>([]);
   const { user } = useContext(AuthContext);
 
+  // set token from env (Vite injects import.meta.env at build/dev time)
+  mapboxgl.accessToken = import.meta.env.VITE_MAPBOX_TOKEN as string;
+
   useEffect(() => {
-    if (!mapRef.current && mapContainer.current) {
-      mapRef.current = new mapboxgl.Map({
-        container: mapContainer.current,
-        style: "mapbox://styles/mapbox/streets-v11",
-        center: [0, 0],
-        zoom: 12,
-      });
+    if (mapRef.current) return; // already initialized
+    if (!mapContainer.current) return;
+
+    const token = import.meta.env.VITE_MAPBOX_TOKEN as string | undefined;
+    if (!token) {
+      // eslint-disable-next-line no-console
+      console.error("Mapbox token is missing (VITE_MAPBOX_TOKEN).");
     }
+
+    const map = new mapboxgl.Map({
+      container: mapContainer.current,
+      style: "mapbox://styles/mapbox/streets-v11",
+      center: [0, 0],
+      zoom: 12,
+    });
+
+    mapRef.current = map;
+    map.addControl(new mapboxgl.NavigationControl(), "top-right");
+
+    // attach error handler and load handler
+    map.on("error", (e) => {
+      // eslint-disable-next-line no-console
+      console.error("Mapbox error event:", e.error || e);
+    });
+
+    map.on("load", () => {
+      // eslint-disable-next-line no-console
+      console.debug("Mapbox loaded, style loaded:", map.isStyleLoaded && map.isStyleLoaded());
+      try {
+        map.resize();
+      } catch (e) {
+        // eslint-disable-next-line no-console
+        console.warn("map.resize() failed on load:", e);
+      }
+    });
+
+    // expose for interactive debugging (cleanup on unmount)
+    try {
+      // @ts-ignore
+      (window as any).__MAD_MAP = map;
+    } catch {}
+
+    return () => {
+      try {
+        map.remove();
+      } catch {}
+      mapRef.current = null;
+      try {
+        // @ts-ignore
+        delete (window as any).__MAD_MAP;
+      } catch {}
+    };
   }, []);
 
   // get location
