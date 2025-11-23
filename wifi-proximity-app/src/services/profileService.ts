@@ -1,3 +1,4 @@
+// src/services/profileService.ts
 import { db, storage } from "../firebase";
 import {
     doc,
@@ -84,6 +85,18 @@ export async function getProfileBySlug(slug: string) {
     const snaps = await getDocs(q);
     if (snaps.empty) return null;
     return snaps.docs[0].data();
+}
+
+/**
+ * Helper that treats its argument as either a slug or a UID.
+ * First tries slug, then falls back to document id.
+ */
+export async function getProfileByIdOrSlug(idOrSlug: string) {
+    const bySlug = await getProfileBySlug(idOrSlug);
+    if (bySlug) return bySlug;
+
+    const byUid = await getProfileByUid(idOrSlug);
+    return byUid;
 }
 
 export async function uploadPhoto(uid: string, file: File) {

@@ -14,16 +14,34 @@ import {
 
 /* ---------- existing interaction helpers ---------- */
 
+// eventService.ts
+
 export async function saveInteraction(params: {
     ownerUserId: string;
-    otherUserId: string;
+    otherUserId: string;   // can be UID or slug, but must be stable
     eventCode: string;
     note?: string;
 }) {
-    await addDoc(collection(db, "interactions"), {
-        ...params,
-        createdAt: serverTimestamp(),
-    });
+    const { ownerUserId, otherUserId, eventCode, note } = params;
+
+    // one doc per (owner, event, otherUser)
+    const interactionId = `${ownerUserId}_${eventCode}_${otherUserId}`;
+
+    const ref = doc(db, "interactions", interactionId);
+
+    await setDoc(
+        ref,
+        {
+            ownerUserId,
+            otherUserId,
+            eventCode,
+            note,
+            // createdAt will be set on first write; updatedAt changes each time
+            createdAt: serverTimestamp(),
+            updatedAt: serverTimestamp(),
+        },
+        { merge: true }
+    );
 }
 
 export async function getInteractionsForEvent(

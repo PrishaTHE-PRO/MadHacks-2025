@@ -1,7 +1,7 @@
 // src/pages/ProfileViewPage.tsx
 import { useEffect, useState, useContext } from "react";
 import { useParams, useNavigate, useSearchParams } from "react-router-dom";
-import { getProfileBySlug } from "../services/profileService";
+import { getProfileByIdOrSlug } from "../services/profileService";
 import { saveInteraction } from "../services/eventService";
 import { AuthContext } from "../context/AuthContext";
 import {
@@ -16,6 +16,7 @@ import {
   Button,
 } from "@mui/material";
 import { keyframes } from "@mui/system";
+import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 import EmailIcon from "@mui/icons-material/Email";
 import PhoneIcon from "@mui/icons-material/Phone";
 import LinkedInIcon from "@mui/icons-material/LinkedIn";
@@ -23,7 +24,6 @@ import LanguageIcon from "@mui/icons-material/Language";
 import PictureAsPdfIcon from "@mui/icons-material/PictureAsPdf";
 import PhotoLibraryIcon from "@mui/icons-material/PhotoLibrary";
 import MovieIcon from "@mui/icons-material/Movie";
-import { BackButton } from "../components/BackButton";
 
 interface Profile {
   slug: string;
@@ -63,35 +63,48 @@ export function ProfileViewPage() {
   const backTo = searchParams.get("back") || "events";
   const navigate = useNavigate();
   const { user } = useContext(AuthContext);
+
   const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
   const [saved, setSaved] = useState(false);
 
   useEffect(() => {
-    if (slug) {
-      getProfileBySlug(slug)
-        .then((data) => {
-          if (data) {
-            setProfile(data as Profile);
-          }
-        })
-        .finally(() => setLoading(false));
+    let cancelled = false;
+
+    async function load() {
+      if (!slug) {
+        setLoading(false);
+        return;
+      }
+
+      try {
+        const data = await getProfileByIdOrSlug(slug);
+        console.log("ProfileView slug =", slug, "data =", data);
+        if (!cancelled && data) {
+          setProfile(data as Profile);
+        }
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
     }
+
+    load();
+    return () => {
+      cancelled = true;
+    };
   }, [slug]);
 
   const handleBack = async () => {
-    // Save contact if we have event code and user
     if (user && eventCode && profile && !saved) {
       await saveInteraction({
         ownerUserId: user.uid,
-        otherUserId: profile.userId,
-        eventCode: eventCode,
+        otherUserId: profile.userId,   // this is the UID, *not* the slug
+        eventCode,
         note: "Met via proximity detection",
       });
       setSaved(true);
     }
 
-    // Navigate back depending on context
     if (backTo === "nearby" && eventCode) {
       navigate(`/nearby/${eventCode}`);
     } else if (backTo === "contacts" && eventCode) {
@@ -121,11 +134,8 @@ export function ProfileViewPage() {
   }
 
   const avatarInitial =
-    (profile.name || profile.firstName || "")
-      .trim()
-      .charAt(0)
-      .toUpperCase() || "U";
-
+    (profile.name || profile.firstName || "").trim().charAt(0).toUpperCase() ||
+    "U";
   const gallery = (profile.galleryUrls || []).filter(Boolean);
 
   return (
@@ -138,10 +148,15 @@ export function ProfileViewPage() {
           "radial-gradient(circle at top, rgba(25,118,210,0.13), transparent 60%)",
       }}
     >
-      {/* Back arrow with animated scoot + swipe-left on tap */}
-      <BackButton onClick={handleBack} />
+      <Container maxWidth="sm" sx={{ py: 2 }}>
+        <Button
+          onClick={handleBack}
+          startIcon={<ArrowBackIcon />}
+          sx={{ mb: 2 }}
+        >
+          Back
+        </Button>
 
-      <Container maxWidth="sm" sx={{ py: 4 }}>
         <Paper
           elevation={4}
           sx={{
