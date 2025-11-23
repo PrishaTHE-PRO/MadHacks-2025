@@ -175,6 +175,8 @@ Open the Nearby view (with multiple devices/browsers) and see presence updates i
 
 View and save profiles + contacts per event
 
+---
+
 ## Project Status
 
 Ripple was built as a hackathon project and is still a prototype.
