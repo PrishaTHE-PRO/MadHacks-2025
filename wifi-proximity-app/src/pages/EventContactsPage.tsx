@@ -14,7 +14,6 @@ import {
   Button,
   Stack,
   Avatar,
-  CircularProgress,
   Toolbar,
 } from "@mui/material";
 
@@ -35,7 +34,6 @@ export function EventContactsPage() {
   const { eventCode } = useParams<{ eventCode: string }>();
   const { user } = useContext(AuthContext);
   const [contacts, setContacts] = useState<Contact[]>([]);
-  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     if (user && eventCode) {
@@ -50,8 +48,7 @@ export function EventContactsPage() {
             };
           })
         );
-        setContacts(contactsWithProfiles);
-        setLoading(false);
+  setContacts(contactsWithProfiles);
       });
     }
   }, [user, eventCode]);
@@ -75,11 +72,7 @@ export function EventContactsPage() {
           Event Code: <strong>{eventCode}</strong>
         </Typography>
 
-        {loading ? (
-          <Box sx={{ display: "flex", justifyContent: "center", py: 4 }}>
-            <CircularProgress />
-          </Box>
-        ) : contacts.length === 0 ? (
+          {contacts.length === 0 ? (
           <Paper sx={{ p: 4, textAlign: "center" }}>
             <Typography variant="body1" color="text.secondary">
               No contacts yet. Use the &quot;Find Nearby&quot; feature to meet people at this event!
